@@ -4401,5 +4401,20 @@
   "settings.mcp.connectPopover.triggerLabel": "连接详情",
   "workflowHistory.action.restore.alreadyRestored": "该工作流版本已恢复",
   "workflowHistory.group.unnamedVersions": "1 个版本 | {count} 个版本",
-  "workflows.publish.permissionDenied": "你没有权限发布此工作流"
+  "workflows.publish.permissionDenied": "你没有权限发布此工作流",
+  "generic.stopAll": "全部停止",
+  "executionStopManyModal.title": "停止执行",
+  "executionStopManyModal.description": "请选择要停止的执行类型：",
+  "executionStopManyModal.button.close": "关闭",
+  "executionStopManyModal.button.submit": "停止执行",
+  "executionStopManyModal.queued": "队列中",
+  "executionStopManyModal.running": "运行中",
+  "executionStopManyModal.waiting": "等待中",
+  "executionStopManyModal.success": "已停止 {count} 个执行。",
+  "executionStopManyModal.error.failure": "停止执行失败。",
+  "executionStopManyModal.dateHint.startEnd": "仅影响当前筛选条件下，开始时间在“{startedAfter}”与“{startedBefore}”之间的执行。",
+  "executionStopManyModal.dateHint.startOnly": "仅影响当前筛选条件下，开始时间在“{startedAfter}”之后的执行。",
+  "executionStopManyModal.dateHint.endOnly": "仅影响当前筛选条件下，开始时间在“{startedBefore}”之前的执行。",
+  "executionStopManyModal.allWorkflowsHint": "这将影响你有权限访问的所有工作流",
+  "fixedCollectionParameter.addField": "添加字段"
 }
