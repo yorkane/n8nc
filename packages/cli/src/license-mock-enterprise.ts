@@ -40,10 +40,10 @@ export class EnterpriseLicenseMocker {
 				feature === 'feat:aiAssistant' ||
 				feature === 'feat:askAi'
 			) {
-				console.log(`[ENTERPRISE MOCK] Feature ${feature} disabled (hiding non-prod banner)`);
+				console.debug(`[ENTERPRISE MOCK] Feature ${feature} disabled (hiding non-prod banner)`);
 				return false;
 			}
-			console.log(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
+			console.debug(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
 			return true;
 		};
 
@@ -56,13 +56,13 @@ export class EnterpriseLicenseMocker {
 
 			// 对于配额类型，返回无限制
 			if (Object.values(LICENSE_QUOTAS).some((quota) => quota === feature)) {
-				console.log(`[ENTERPRISE MOCK] Quota ${feature} set to unlimited`);
+				console.debug(`[ENTERPRISE MOCK] Quota ${feature} set to unlimited`);
 				return UNLIMITED_LICENSE_QUOTA;
 			}
 
 			// 对于布尔功能，返回true；
 			if (Object.values(LICENSE_FEATURES).some((licenseFeature) => licenseFeature === feature)) {
-				console.log(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
+				console.debug(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
 				return true;
 			}
 
@@ -120,7 +120,7 @@ export class EnterpriseLicenseMocker {
 			license.getValue = originalGetValue;
 		}
 		this.originalMethods.clear();
-		console.log('[ENTERPRISE MOCK] Original license methods restored');
+		console.debug('[ENTERPRISE MOCK] Original license methods restored');
 	}
 
 	/**

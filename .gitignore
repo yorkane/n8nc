@@ -9,6 +9,9 @@ yarn.lock
 google-generated-credentials.json
 _START_PACKAGE
 .env
+n8ndata/
+packages/cli/bin/midscene_run/
+packages/cli/bin/logs/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.default.json

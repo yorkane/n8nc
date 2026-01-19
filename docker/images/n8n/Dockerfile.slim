@@ -1,0 +1,88 @@
+FROM node:lts-slim
+
+ARG N8N_VERSION
+
+ENV NODE_ENV=production
+ENV N8N_RELEASE_TYPE=dev
+ENV SHELL=/bin/bash
+ENV DEBIAN_FRONTEND=noninteractive
+
+
+WORKDIR /home/node
+
+RUN	mkdir -p /usr/local/lib/node_modules/n8n && \
+ echo 'ls -lta "$@"' > /usr/bin/ll && chmod 755 /usr/bin/ll && \
+ echo Done
+
+# Copy n8n source
+COPY --chown=node:node ./compiled /usr/local/lib/node_modules/n8n
+COPY --chmod=755 docker/images/n8n/docker-entrypoint-slim.sh /docker-entrypoint.sh
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+		git \
+    gnupg \
+    xvfb \
+    xauth \
+    tini \
+    build-essential \
+    python3 \
+    libxtst-dev \
+    libpng-dev \
+    libx11-dev \
+    libxi-dev \
+    pkg-config \
+    python-is-python3 \
+		libglib2.0-0 \
+		ffmpeg \
+		libarchive-tools \
+		unrar-free \
+		libwebkit2gtk-4.0-dev \
+    && npm install -g npm \
+		&& cd /usr/local/lib/node_modules/n8n \
+    npm rebuild sqlite3 && \
+    ln -s /usr/local/lib/node_modules/n8n/bin/n8n /usr/local/bin/n8n && \
+    mkdir -p /home/node/.n8n && \
+    chown -R node:node /home/node && \
+    # Cleanup n8n build artifacts but keep system dev tools
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/ && \
+    rm -rf /root/.npm
+
+USER node
+# RUN mkdir -p /home/node/.n8n/nodes && \
+# 		cd /home/node/.n8n/nodes && \
+#     npm install n8n-nodes-klib-midscene && \
+# 		chown -R node:node /home/node/ && \
+# 		echo "Done install community nodes"
+
+ENV N8N_ENTERPRISE_MOCK=true \
+    NODE_ENV=development \
+    N8N_SECURE_COOKIE=false \
+    NODE_FUNCTION_ALLOW_EXTERNAL=\* \
+    NODE_FUNCTION_ALLOW_BUILTIN=\* \
+    N8N_DIAGNOSTICS_ENABLED=false \
+    N8N_VERSION_NOTIFICATIONS_ENABLED=false \
+    N8N_LICENSE_SERVER_URL=\
+    N8N_LICENSE_AUTO_RENEW_ENABLED=false \
+    N8N_LICENSE_CERT=\
+		N8N_HIRING_BANNER_ENABLED=false \
+		N8N_GRACEFUL_SHUTDOWN_TIMEOUT=20 \
+		N8N_PORT=5678
+
+EXPOSE 5678/tcp
+
+ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]
+
+# docker build -f docker/images/n8n/Dockerfile.slim -t n8nc .
+# docker run -it --rm -p 5678:5678 n8nc
+
+# docker build -f docker/images/n8n/Dockerfile.slim -t n8nc .
+# docker run -it -v /code/n8nc/n8ndata:/home/node/.n8n --name n8ncg --rm -p 5678:5678 n8ncg
+# docker run -it -v /code/n8nc/n8ndata:/data --name n8ncg -p 5678:5678 n8ncg
+# docker run -it --rm -p 5678:5678 n8ncg
+# docker save n8nc | xz > n8nc.tar.xz -v -T32
+# xz -d -k < n8nc.tar.xz | sudo docker load
+
