@@ -1,40 +1,107 @@
-## [2.3.4](https://github.com/n8n-io/n8n/compare/n8n@2.3.3...n8n@2.3.4) (2026-01-13)
+## [2.4.4](https://github.com/n8n-io/n8n/compare/n8n@2.4.3...n8n@2.4.4) (2026-01-16)
+
+
+
+## [2.4.3](https://github.com/n8n-io/n8n/compare/n8n@2.4.2...n8n@2.4.3) (2026-01-15)
+
+
+
+## [2.4.2](https://github.com/n8n-io/n8n/compare/n8n@2.4.1...n8n@2.4.2) (2026-01-14)
 
 
 ### Bug Fixes
 
-* Fix CLI import ([#24215](https://github.com/n8n-io/n8n/issues/24215)) ([cb3ccb9](https://github.com/n8n-io/n8n/commit/cb3ccb9a59561218d36ccee9ff9baedc85ea4c18))
+* **editor:** Fix parameter path in multipleValues=false fixedCollection ([#24217](https://github.com/n8n-io/n8n/issues/24217)) ([e0ff758](https://github.com/n8n-io/n8n/commit/e0ff758fa8d6467ec8b4fc9e9ad23948bdb27ca0))
+* Fix security issue in @rudderstack/rudder-sdk-node via major version upgrade from 2.1.4 to 3.0.0 ([#24303](https://github.com/n8n-io/n8n/issues/24303)) ([99444d1](https://github.com/n8n-io/n8n/commit/99444d1a16dd8318146a25d0d9bf54b43a67786a))
+* Form trigger and Wait Form mode basic authentication fix for form POST request ([#23795](https://github.com/n8n-io/n8n/issues/23795)) ([74aa941](https://github.com/n8n-io/n8n/commit/74aa941a77e7c5aaaeee74d1ff0e9cf785da796e))
+* Harden Git node parameter handling ([#24241](https://github.com/n8n-io/n8n/issues/24241)) ([5391ae2](https://github.com/n8n-io/n8n/commit/5391ae23827d200fe9973f4cd63d7cdd84a7d3f4))
+* **McpClientTool Node:** Filter out tool arguments unless explicitly allowed ([#24263](https://github.com/n8n-io/n8n/issues/24263)) ([852c176](https://github.com/n8n-io/n8n/commit/852c176f0bca4ac42876d1c6740be9809557c684))
+* Regenerate form webhook ids when pasting workflow data ([#24192](https://github.com/n8n-io/n8n/issues/24192)) ([36cfe1f](https://github.com/n8n-io/n8n/commit/36cfe1feea556395925d1a048c3b881bedd5f43d))
 
 
 
-## [2.3.3](https://github.com/n8n-io/n8n/compare/n8n@2.3.2...n8n@2.3.3) (2026-01-13)
-
-
-### Bug Fixes
-
-* **core:** Sanitize filenames for file operations ([#23988](https://github.com/n8n-io/n8n/issues/23988)) ([30791da](https://github.com/n8n-io/n8n/commit/30791da0ad00efa8b823ea093f3640b2b244780f))
-
-
-
-## [2.3.2](https://github.com/n8n-io/n8n/compare/n8n@2.3.1...n8n@2.3.2) (2026-01-09)
+## [2.4.1](https://github.com/n8n-io/n8n/compare/n8n@2.4.0...n8n@2.4.1) (2026-01-13)
 
 
 ### Bug Fixes
 
-* **ai-builder:** Call onGenerationSuccess callback in multi-agent workflow ([#24086](https://github.com/n8n-io/n8n/issues/24086)) ([be0edb8](https://github.com/n8n-io/n8n/commit/be0edb852db553d25370a819ed9e3eefff4e5aeb))
+* Fix CLI import ([#24215](https://github.com/n8n-io/n8n/issues/24215)) ([55e02bb](https://github.com/n8n-io/n8n/commit/55e02bb0aea31a6a7390f54ce6985064fa034d87))
 
 
 
-## [2.3.1](https://github.com/n8n-io/n8n/compare/n8n@2.3.0...n8n@2.3.1) (2026-01-07)
+# [2.4.0](https://github.com/n8n-io/n8n/compare/n8n@2.3.0...n8n@2.4.0) (2026-01-12)
 
 
 ### Bug Fixes
 
-* Bump versions for qs/langchain ([#23939](https://github.com/n8n-io/n8n/issues/23939)) ([84d86b1](https://github.com/n8n-io/n8n/commit/84d86b1d51e680259f3667dc9f322be0461767b2))
-* **core:** Avoid copying execution data table on AddWorkflowVersionIdToExecutionData migration ([#23901](https://github.com/n8n-io/n8n/issues/23901)) ([26aef2a](https://github.com/n8n-io/n8n/commit/26aef2ae6b7975767e118153048d4e4c7ed34bb9))
-* **core:** Fix redirection of user missing MFA to personal settings ([#23881](https://github.com/n8n-io/n8n/issues/23881)) ([b630551](https://github.com/n8n-io/n8n/commit/b630551cb079a5522bf861cd447d52490e19a96f))
-* **Data Table Node:** Fix issue with insert and update operation ([#23936](https://github.com/n8n-io/n8n/issues/23936)) ([23908a7](https://github.com/n8n-io/n8n/commit/23908a7a33ac73e6327c3a84ff8c1a7558690328))
-* **McpClientTool Node:** Sanitize MCP tool arguments based on schema ([#23167](https://github.com/n8n-io/n8n/issues/23167)) ([33ee325](https://github.com/n8n-io/n8n/commit/33ee3252b90e58c3b5ade696133dca1c7cba5967))
+* **ai-builder:** Call onGenerationSuccess callback in multi-agent workflow ([#24086](https://github.com/n8n-io/n8n/issues/24086)) ([24af748](https://github.com/n8n-io/n8n/commit/24af748fd3c809920afddfe58bf99c7fce6063d9))
+* **ai-builder:** Reducing confusion in spec evals from double negative don't criteria ([#24099](https://github.com/n8n-io/n8n/issues/24099)) ([c8391ac](https://github.com/n8n-io/n8n/commit/c8391ac6b83e8d8bae27f30bf44c6249f4e59d09))
+* **Box Node:** Fix webhook deletion bug that could delete wrong webhooks ([#18155](https://github.com/n8n-io/n8n/issues/18155)) ([f7e2029](https://github.com/n8n-io/n8n/commit/f7e20299172f366d3c4f45fcd5c828f8ab811d12))
+* Bump validator dependency ([#24026](https://github.com/n8n-io/n8n/issues/24026)) ([454c856](https://github.com/n8n-io/n8n/commit/454c85609fb6431ac59a656c68140b7ad1fe680c))
+* Bump versions for qs/langchain ([#23939](https://github.com/n8n-io/n8n/issues/23939)) ([bb3d2b6](https://github.com/n8n-io/n8n/commit/bb3d2b668ea5b3bb006bed333d57107e9d874c92))
+* **core:** Add license check to DELETE variables endpoint ([#24028](https://github.com/n8n-io/n8n/issues/24028)) ([647a684](https://github.com/n8n-io/n8n/commit/647a68458008d7884b02727d73756a9979bd508b))
+* **core:** Add license check to LDAP configuration endpoints ([#24105](https://github.com/n8n-io/n8n/issues/24105)) ([588fa50](https://github.com/n8n-io/n8n/commit/588fa50f2aa5f2b5c4d52a833b05b70f811798fc))
+* **core:** Automatically re-publish workflow with new version on pull ([#23859](https://github.com/n8n-io/n8n/issues/23859)) ([14a4b74](https://github.com/n8n-io/n8n/commit/14a4b74c62911c2a922e91b02c3f395ae0dbac05))
+* **core:** Avoid copying execution data table on AddWorkflowVersionIdToExecutionData migration ([#23901](https://github.com/n8n-io/n8n/issues/23901)) ([b4eeba8](https://github.com/n8n-io/n8n/commit/b4eeba803247d3552c98512e1e2928c98f72e8b9))
+* **core:** Bug with incorrect DI in some cases - picked up by enabling linting rule ([#23855](https://github.com/n8n-io/n8n/issues/23855)) ([79f529c](https://github.com/n8n-io/n8n/commit/79f529c145117fa0f69bf00b49f72423bb182182))
+* **core:** ChatHub: respond error details from execution ([#23732](https://github.com/n8n-io/n8n/issues/23732)) ([5234921](https://github.com/n8n-io/n8n/commit/5234921fc44cd9179e53c816151bd26e36c259f2))
+* **core:** Check if user data changed before calling save on ldap sync ([#23796](https://github.com/n8n-io/n8n/issues/23796)) ([7610a50](https://github.com/n8n-io/n8n/commit/7610a50f49f61dcca41f5a4c01813433cd6b57c6))
+* **core:** Coerce BinaryDataConfig dbMaxFileSizeSchema to a number ([#23927](https://github.com/n8n-io/n8n/issues/23927)) ([565a428](https://github.com/n8n-io/n8n/commit/565a428ec4fc8706c489f2ad156069ab9ffd9e15))
+* **core:** Connect to external secrets provider before testing ([#24135](https://github.com/n8n-io/n8n/issues/24135)) ([c399e8e](https://github.com/n8n-io/n8n/commit/c399e8efbe72b65306b0629ba346566068187c12))
+* **core:** Ensure all streaming chunks are processed before deleting ChatHub workflow ([#24040](https://github.com/n8n-io/n8n/issues/24040)) ([8fa5aa0](https://github.com/n8n-io/n8n/commit/8fa5aa0a7a71007245528e46481471f52d180866))
+* **core:** Fix for jumpy UI when using drag/drop to fields in NDV ([#23516](https://github.com/n8n-io/n8n/issues/23516)) ([4f606d7](https://github.com/n8n-io/n8n/commit/4f606d7ae4f3358142dae954df3e25b2968882aa))
+* **core:** Fix redirection of user missing MFA to personal settings ([#23881](https://github.com/n8n-io/n8n/issues/23881)) ([072a1dd](https://github.com/n8n-io/n8n/commit/072a1dd82555145da1b5d98b608cc5d864a2bc1c))
+* **core:** Inserts into execution metadata table fail due to fk ([#23759](https://github.com/n8n-io/n8n/issues/23759)) ([77cbe50](https://github.com/n8n-io/n8n/commit/77cbe50aea55e471ea937a5c26d5fb2ce28fee2d))
+* **core:** Resolve file path correctly when serving node icons from N8N_CUSTOM_EXTENSIONS ([#23029](https://github.com/n8n-io/n8n/issues/23029)) ([7aa5307](https://github.com/n8n-io/n8n/commit/7aa5307a80a27c1bb88d1f4b806b4523ccca0087))
+* **core:** Revert auto publish on pull ([#24101](https://github.com/n8n-io/n8n/issues/24101)) ([5013a46](https://github.com/n8n-io/n8n/commit/5013a46c540782e83902ee23c344840b4a3f8589))
+* **core:** Sanitize filenames for file operations ([#23988](https://github.com/n8n-io/n8n/issues/23988)) ([e0baf48](https://github.com/n8n-io/n8n/commit/e0baf48c6a54808f6dbca8cb352bfa306092c223))
+* **core:** Stronger allowed path enforcement for read/write Node ([#23542](https://github.com/n8n-io/n8n/issues/23542)) ([1a33fa3](https://github.com/n8n-io/n8n/commit/1a33fa35415f8599cd6a825324f7b94defa7fb72))
+* Correctly parse curl command with encoding ([#23853](https://github.com/n8n-io/n8n/issues/23853)) ([dc847e7](https://github.com/n8n-io/n8n/commit/dc847e7a92c5bfec108637c280ff547427653f11))
+* **Data Table Node:** Fix issue with insert and update operation ([#23936](https://github.com/n8n-io/n8n/issues/23936)) ([569695d](https://github.com/n8n-io/n8n/commit/569695dc67135b0eee1ac1c5a701aa22be66b12e))
+* **editor:** Fix input type switch when pasting expression ([#23535](https://github.com/n8n-io/n8n/issues/23535)) ([aed05b4](https://github.com/n8n-io/n8n/commit/aed05b4b862e25a017d0d292ba534ea32c0a11d0))
+* **editor:** Fix typo in source control push modal message ([#23971](https://github.com/n8n-io/n8n/issues/23971)) ([09ed1f6](https://github.com/n8n-io/n8n/commit/09ed1f686911e91a31e817c2eb543ad7e13b8b7c))
+* **editor:** Hide 'Create Folder' button if not applicable ([#23981](https://github.com/n8n-io/n8n/issues/23981)) ([8824bea](https://github.com/n8n-io/n8n/commit/8824beac0137af041b58e600ac24424bcbd7321a))
+* **editor:** Keep structured output parser error icon in correct position when running ([#23930](https://github.com/n8n-io/n8n/issues/23930)) ([f98b7be](https://github.com/n8n-io/n8n/commit/f98b7bee029a4f4e4428b4ed2b7e782ce1807166))
+* **editor:** Make AI assistant tool steps visible during streaming ([#23898](https://github.com/n8n-io/n8n/issues/23898)) ([64498cd](https://github.com/n8n-io/n8n/commit/64498cdca82b64b0505a5dd0e847bdc92a02e375))
+* **editor:** Make code block's copy button in ChatHub follow scroll ([#24154](https://github.com/n8n-io/n8n/issues/24154)) ([6fcf2b7](https://github.com/n8n-io/n8n/commit/6fcf2b74f9d8085ab96381e17375b82b1e26515f))
+* **editor:** Update free AI credits model list to include gpt-5-mini ([#24041](https://github.com/n8n-io/n8n/issues/24041)) ([8ca4f27](https://github.com/n8n-io/n8n/commit/8ca4f27bfde506be8954db4e46eaf05cdf748450))
+* Escape special characters in queries ([#23133](https://github.com/n8n-io/n8n/issues/23133)) ([f73fae6](https://github.com/n8n-io/n8n/commit/f73fae6fe7fc34907bba102648a9997186aa4385))
+* **lmChatOpenAi Node:** Add validation for models requiring Responses API ([#24033](https://github.com/n8n-io/n8n/issues/24033)) ([60a18a4](https://github.com/n8n-io/n8n/commit/60a18a4debe17aba9a731a5911ceb81e37c5bb04))
+* **McpClientTool Node:** Sanitize MCP tool arguments based on schema ([#23167](https://github.com/n8n-io/n8n/issues/23167)) ([639c09f](https://github.com/n8n-io/n8n/commit/639c09f69a58745dd408389a08a58f8127dd9141))
+* Resolve expressions in custom form HTML fields for HITL nodes ([#23922](https://github.com/n8n-io/n8n/issues/23922)) ([62f3019](https://github.com/n8n-io/n8n/commit/62f30192606810f95c36b42ffd3c5b0d0543e91f))
+* **Simple Memory Node:** Don't allow adding simple memory node if instance in queue or multi-main mode ([#24083](https://github.com/n8n-io/n8n/issues/24083)) ([e70a3f3](https://github.com/n8n-io/n8n/commit/e70a3f345dfb7b579a88f2a0eec24bcb55c4fbbf))
+* Update mime-types to fixed version ([#23858](https://github.com/n8n-io/n8n/issues/23858)) ([29515c8](https://github.com/n8n-io/n8n/commit/29515c89d5953510d974f641fc14d2b853a2ef7f))
+
+
+### Features
+
+* Accept invitation to use new JWT for tamper proof invites ([#24025](https://github.com/n8n-io/n8n/issues/24025)) ([e0f9381](https://github.com/n8n-io/n8n/commit/e0f93814681b6f74290045334bf02c8e77f5da7a))
+* Add feature flag for tamper proof invite links ([#23920](https://github.com/n8n-io/n8n/issues/23920)) ([64c27e5](https://github.com/n8n-io/n8n/commit/64c27e5c34525581241ffef28c480538ca326797))
+* Add feature for clearing credentials on resolver update ([#24169](https://github.com/n8n-io/n8n/issues/24169)) ([5cc55af](https://github.com/n8n-io/n8n/commit/5cc55af426f7cd481215cba6e7ed6d0a66b516cd))
+* Add git commit info to workfolder push ([#23903](https://github.com/n8n-io/n8n/issues/23903)) ([fa41b40](https://github.com/n8n-io/n8n/commit/fa41b404599663a32b3dc16c67f6e5b87111e3a9))
+* Add new acceptance API, make UI use correct API for tokens ([#24084](https://github.com/n8n-io/n8n/issues/24084)) ([8d1e1eb](https://github.com/n8n-io/n8n/commit/8d1e1eb25e15ffb9301aa506f1cebc81ccb4044c))
+* Add new api for generating invite links ([#23929](https://github.com/n8n-io/n8n/issues/23929)) ([7b74533](https://github.com/n8n-io/n8n/commit/7b74533a141ee0b96d76fa228fb9e8261fc4f426))
+* **ai-builder:** Add best practices for notification technique ([#24030](https://github.com/n8n-io/n8n/issues/24030)) ([b391ee1](https://github.com/n8n-io/n8n/commit/b391ee1c18bd0fc2a0afe4513781e3d497e873e1))
+* **ai-builder:** Add best practices for triage technique ([#24080](https://github.com/n8n-io/n8n/issues/24080)) ([733adb6](https://github.com/n8n-io/n8n/commit/733adb6720916cb528d590e22da96ed977fc0582))
+* **ai-builder:** Add default values guide for LLM and embedding model configuration ([#24098](https://github.com/n8n-io/n8n/issues/24098)) ([53cfa35](https://github.com/n8n-io/n8n/commit/53cfa35362ad4e28500b852918cc3c14c1dbb3a3))
+* **ai-builder:** Data persistence technique best practice document ([#23852](https://github.com/n8n-io/n8n/issues/23852)) ([c465a49](https://github.com/n8n-io/n8n/commit/c465a49daecb651a93c4355f453425955a3cf97e))
+* **ai-builder:** Prefer core nodes over code node ([#23937](https://github.com/n8n-io/n8n/issues/23937)) ([4e6063c](https://github.com/n8n-io/n8n/commit/4e6063c91e6581161d5d94560eaa644c0caebb9f))
+* Allow to set ChatHub workflow agent icon in NDV ([#23562](https://github.com/n8n-io/n8n/issues/23562)) ([495841f](https://github.com/n8n-io/n8n/commit/495841f5916e989cadc1edda1912f9d39f211135))
+* **API:** Update docs to mention publish action ([#24003](https://github.com/n8n-io/n8n/issues/24003)) ([46c91df](https://github.com/n8n-io/n8n/commit/46c91dfaab291696c486ef784b09e68c7647a473))
+* Autosave workflows ([#23036](https://github.com/n8n-io/n8n/issues/23036)) ([37aa56e](https://github.com/n8n-io/n8n/commit/37aa56e6fff865e6b0f3203e616d6301af7c2cbc))
+* **core:** Add execution source to workflow-executed event ([#24058](https://github.com/n8n-io/n8n/issues/24058)) ([ae1fb77](https://github.com/n8n-io/n8n/commit/ae1fb77203ed58220eed5e400a0321d9f56e7018))
+* **core:** Add log streaming events for executions ([#23372](https://github.com/n8n-io/n8n/issues/23372)) ([2f29603](https://github.com/n8n-io/n8n/commit/2f296039089aad085c140deb580c3cb03e28c1e3))
+* **core:** Add log streaming events for external secrets provider ([#23990](https://github.com/n8n-io/n8n/issues/23990)) ([d58d367](https://github.com/n8n-io/n8n/commit/d58d3671b1172fbb07bbce805c2c7b82f88a0c1a))
+* **core:** Add TLS support to Syslog client ([#23304](https://github.com/n8n-io/n8n/issues/23304)) ([279d6fd](https://github.com/n8n-io/n8n/commit/279d6fd10fadb37961e381850c8842e2a74375b9))
+* **core:** First shot in resolving the credential resolver config expressions ([#23110](https://github.com/n8n-io/n8n/issues/23110)) ([def0a09](https://github.com/n8n-io/n8n/commit/def0a09d8ae64b99283fd45a47047604b9a7250d))
+* **core:** UI changes to support TLS over TCP ([#23938](https://github.com/n8n-io/n8n/issues/23938)) ([42adee8](https://github.com/n8n-io/n8n/commit/42adee8b05d17d31b46a0cdcc9e740ea82be3b81))
+* **editor:** Improve model selection dropdown in ChatHub ([#23612](https://github.com/n8n-io/n8n/issues/23612)) ([9a0e154](https://github.com/n8n-io/n8n/commit/9a0e1548cfd6f3469e937bed97e8e3aa3b8395fe))
+* **editor:** Overhaul (nested) collection UI ([#20951](https://github.com/n8n-io/n8n/issues/20951)) ([a992a45](https://github.com/n8n-io/n8n/commit/a992a45ad074969ba43747c7eb8db5c374c94c9c))
+* **editor:** Show building and done status in page title for AI builder ([#23987](https://github.com/n8n-io/n8n/issues/23987)) ([4879db8](https://github.com/n8n-io/n8n/commit/4879db8f433c185c8ea992d364d8484e3c381517))
+* **editor:** Support hours and days in prune time within workflow history ([#24108](https://github.com/n8n-io/n8n/issues/24108)) ([129be3c](https://github.com/n8n-io/n8n/commit/129be3c02b23ea5dc22282f5f7c939bd9cfb0dcb))
+* **Git Node:** Add reflog action ([#21105](https://github.com/n8n-io/n8n/issues/21105)) ([1c413ff](https://github.com/n8n-io/n8n/commit/1c413ffc67ff9a27ab123719f44f80d56af5fc14))
+* **Mailjet Node:** Add Custom Campaign and Deduplicate Campaign Additional Fields ([#11715](https://github.com/n8n-io/n8n/issues/11715)) ([5076909](https://github.com/n8n-io/n8n/commit/5076909bce18760351ca3a325b5c0058cee55424))
+* Use new generated links within the UI and emails if feature is enabled ([#23962](https://github.com/n8n-io/n8n/issues/23962)) ([4793610](https://github.com/n8n-io/n8n/commit/4793610c2c2f34d7b6cfa692abb93fe32b0c7f12))
 
 
 
