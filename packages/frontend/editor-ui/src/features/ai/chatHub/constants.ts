@@ -7,7 +7,6 @@ export const CHAT_WORKFLOW_AGENTS_VIEW = 'chat-workflow-agents';
 export const CHAT_PERSONAL_AGENTS_VIEW = 'chat-personal-agents';
 export const CHAT_SETTINGS_VIEW = 'chat-settings';
 
-export const CHAT_STORE = 'chatStore';
 export const CHAT_SESSIONS_PAGE_SIZE = 18;
 export const MAX_AGENT_NAME_CHARS_MENU = 45;
 export const NEW_AGENT_MENU_ID = 'agent::new';
@@ -35,7 +34,8 @@ export const providerDisplayNames: Record<ChatHubProvider, string> = {
 
 export const MOBILE_MEDIA_QUERY = '(max-width: 768px)';
 
-export const TOOLS_SELECTOR_MODAL_KEY = 'toolsSelectorModal';
+export const TOOL_SETTINGS_MODAL_KEY = 'toolSettingsModal';
+export const TOOLS_MANAGER_MODAL_KEY = 'toolsManagerModal';
 export const AGENT_EDITOR_MODAL_KEY = 'agentEditorModal';
 export const CHAT_CREDENTIAL_SELECTOR_MODAL_KEY = 'chatCredentialSelectorModal';
 export const CHAT_MODEL_BY_ID_SELECTOR_MODAL_KEY = 'chatModelByIdSelectorModal';
