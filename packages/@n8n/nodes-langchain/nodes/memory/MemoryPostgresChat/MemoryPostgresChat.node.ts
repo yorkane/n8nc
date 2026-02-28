@@ -95,7 +95,7 @@ export class MemoryPostgresChat implements INodeType {
 		const pool = pgConf.db.$pool as unknown as pg.Pool;
 
 		const pgChatHistory = new PostgresChatMessageHistory({
-			pool,
+			pool: pool as any,
 			sessionId,
 			tableName,
 		});

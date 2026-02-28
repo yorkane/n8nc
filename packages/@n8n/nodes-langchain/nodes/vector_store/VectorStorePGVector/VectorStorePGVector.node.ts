@@ -243,7 +243,7 @@ export class VectorStorePGVector extends createVectorStoreNode<ExtendedPGVectorS
 		const pool = pgConf.db.$pool as unknown as pg.Pool;
 
 		const config: PGVectorStoreArgs = {
-			pool,
+			pool: pool as any,
 			tableName,
 			filter,
 		};
@@ -286,7 +286,7 @@ export class VectorStorePGVector extends createVectorStoreNode<ExtendedPGVectorS
 		const pool = pgConf.db.$pool as unknown as pg.Pool;
 
 		const config: PGVectorStoreArgs = {
-			pool,
+			pool: pool as any,
 			tableName,
 		};
 
