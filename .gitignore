@@ -3,6 +3,11 @@ node_modules
 .tmp
 tmp
 dist
+n8ndata/
+midscene_run/report/
+*.log
+logs/
+report/
 coverage
 npm-debug.log*
 yarn.lock
