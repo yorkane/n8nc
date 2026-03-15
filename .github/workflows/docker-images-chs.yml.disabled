@@ -1,0 +1,153 @@
+name: 'Docker: Build and Push (CHS tag or branch only)'
+
+env:
+  NODE_OPTIONS: '--max-old-space-size=8192'
+
+on:
+  push:
+    tags:
+      - '*chs*'
+    branches:
+      - '*chs*'
+
+jobs:
+  build-and-push-docker:
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-latest
+            docker_platform: linux/amd64
+          - platform: arm64
+            runner: ubuntu-latest
+            docker_platform: linux/arm64
+
+    name: Build and Push Docker Image (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    outputs:
+      image_ref: ${{ steps.determine-tags.outputs.primary_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure Turborepo Cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Build n8n for Docker
+        run: pnpm build:n8n
+
+      - name: Set build context
+        id: context
+        run: |
+          REF_NAME="${GITHUB_REF##*/}"
+          echo "release_type=custom" >> $GITHUB_OUTPUT
+          echo "n8n_version=$REF_NAME" >> $GITHUB_OUTPUT
+          echo "push_enabled=true" >> $GITHUB_OUTPUT
+
+      - name: Determine Docker tags
+        id: determine-tags
+        run: |
+          REF_NAME="${GITHUB_REF##*/}"
+          GHCR_BASE="ghcr.io/${{ github.repository_owner }}/n8n"
+          DOCKER_BASE="${{ secrets.DOCKER_USERNAME }}/n8n"
+          PLATFORM="${{ matrix.platform }}"
+
+          PRIMARY_GHCR_MANIFEST_TAG_VALUE="${GHCR_BASE}:${REF_NAME}"
+          PRIMARY_DOCKER_MANIFEST_TAG_VALUE="${DOCKER_BASE}:${REF_NAME}"
+          GHCR_TAGS_FOR_PUSH="${PRIMARY_GHCR_MANIFEST_TAG_VALUE}-${PLATFORM}"
+          DOCKER_TAGS_FOR_PUSH="${PRIMARY_DOCKER_MANIFEST_TAG_VALUE}-${PLATFORM}"
+
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$GHCR_TAGS_FOR_PUSH\n$DOCKER_TAGS_FOR_PUSH" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "primary_tag=${PRIMARY_GHCR_MANIFEST_TAG_VALUE}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/images/n8n/Dockerfile
+          build-args: |
+            NODE_VERSION=22
+            N8N_VERSION=${{ steps.context.outputs.n8n_version }}
+            N8N_RELEASE_TYPE=custom
+          platforms: ${{ matrix.docker_platform }}
+          provenance: false
+          push: true
+          tags: ${{ steps.determine-tags.outputs.tags }}
+
+  create_multi_arch_manifest:
+    name: Create Multi-Arch Manifest
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create GHCR multi-arch manifest
+        run: |
+          REF_NAME="${GITHUB_REF##*/}"
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/n8n:$REF_NAME \
+            ghcr.io/${{ github.repository_owner }}/n8n:$REF_NAME-amd64 \
+            ghcr.io/${{ github.repository_owner }}/n8n:$REF_NAME-arm64
+
+      - name: Create DockerHub multi-arch manifest
+        run: |
+          REF_NAME="${GITHUB_REF##*/}"
+          docker buildx imagetools create \
+            --tag ${{ secrets.DOCKER_USERNAME }}/n8n:$REF_NAME \
+            ${{ secrets.DOCKER_USERNAME }}/n8n:$REF_NAME-amd64 \
+            ${{ secrets.DOCKER_USERNAME }}/n8n:$REF_NAME-arm64
