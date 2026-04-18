@@ -66,9 +66,64 @@ jobs:
           echo "Found $BEHIND new commits from upstream/chs"
           echo "has_changes=true" >> $GITHUB_OUTPUT
 
-          # Merge with --theirs strategy for auto conflict resolution
-          git merge upstream/chs -X theirs --no-edit \
-            -m "chore: auto-merge upstream/chs ($(date -u +%Y-%m-%d))"
+          # Attempt merge with --theirs strategy
+          MERGE_MSG="chore: auto-merge upstream/chs ($(date -u +%Y-%m-%d))"
+          if git merge upstream/chs -X theirs --no-edit -m "$MERGE_MSG"; then
+            echo "Merge completed cleanly"
+            exit 0
+          fi
+
+          echo "::warning::Merge had conflicts, attempting auto-resolution..."
+
+          # --- Auto-resolve conflicts ---
+
+          # 1. Handle rename/delete: we renamed .yml -> .yml.disabled, upstream deleted .yml
+          #    Resolution: accept the deletion (remove our .disabled copy)
+          for f in $(git diff --name-only --diff-filter=U); do
+            if [[ "$f" == *.yml.disabled ]]; then
+              echo "Removing renamed-then-deleted: $f"
+              git rm -f "$f" 2>/dev/null || true
+            fi
+          done
+
+          # 2. Handle modify/delete: file deleted in HEAD but modified in upstream
+          #    Resolution: accept upstream's version (keep the file)
+          #    Also handle: file modified in HEAD but deleted in upstream -> accept deletion
+          for f in $(git diff --name-only --diff-filter=U); do
+            if git ls-tree upstream/chs -- "$f" > /dev/null 2>&1; then
+              echo "Accepting upstream version: $f"
+              git checkout upstream/chs -- "$f"
+              git add "$f"
+            else
+              echo "Accepting deletion: $f"
+              git rm -f "$f" 2>/dev/null || true
+            fi
+          done
+
+          # 3. Handle any remaining conflicts with --theirs
+          REMAINING=$(git diff --name-only --diff-filter=U || true)
+          if [ -n "$REMAINING" ]; then
+            echo "Resolving remaining conflicts with --theirs:"
+            echo "$REMAINING"
+            echo "$REMAINING" | while read -r f; do
+              git checkout --theirs "$f" 2>/dev/null && git add "$f" || git rm -f "$f" 2>/dev/null || true
+            done
+          fi
+
+          # 4. Remove any .github/workflows/*.yml files that upstream brings in
+          #    (we keep them disabled as .yml.disabled, don't want them active)
+          #    But preserve our own sync-build-push.yml
+          for f in .github/workflows/*.yml; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "sync-build-push.yml" ]; then
+              echo "Disabling upstream workflow: $f -> ${f}.disabled"
+              git mv "$f" "${f}.disabled" 2>/dev/null || mv "$f" "${f}.disabled"
+              git add "${f}.disabled"
+              git rm -f "$f" 2>/dev/null || true
+            fi
+          done
+
+          git commit --no-edit -m "$MERGE_MSG" || true
+          echo "Merge conflicts auto-resolved"
 
       - name: Push merged code
         if: steps.merge.outputs.has_changes == 'true'
