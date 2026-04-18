@@ -1,8 +1,12 @@
 name: 'Test: Evals AI (Release)'
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (e.g. v1.2.0), same as a published release tag'
+        required: true
+        type: string
 
 jobs:
   check-minor-release:
@@ -15,7 +19,7 @@ jobs:
       - name: Check if minor release
         id: check
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${{ github.event.inputs.release_tag }}"
           echo "Release tag: $TAG"
 
           # Check if it's a minor release (e.g., v1.2.0, not v1.2.1)
@@ -35,7 +39,7 @@ jobs:
     if: needs.check-minor-release.outputs.is_minor == 'true'
     uses: ./.github/workflows/test-evals-ai-reusable.yml
     with:
-      branch: ${{ github.event.release.tag_name }}
+      branch: ${{ github.event.inputs.release_tag }}
       suite: pairwise
       dataset: notion-pairwise-fresh
       # Spec evals on minor release: 2 reps, 3 judges
@@ -50,7 +54,7 @@ jobs:
     if: needs.check-minor-release.outputs.is_minor == 'true'
     uses: ./.github/workflows/test-evals-ai-reusable.yml
     with:
-      branch: ${{ github.event.release.tag_name }}
+      branch: ${{ github.event.inputs.release_tag }}
       suite: llm-judge
       dataset: workflow-builder-canvas-prompts
       # Matrix evals always use 3 reps, 3 judges

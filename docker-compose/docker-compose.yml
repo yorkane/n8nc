@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: n8n-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - n8n
+
+  n8n:
+    image: deluxebear/n8n:latest
+    container_name: n8n-main
+    restart: unless-stopped
+    environment:
+      - N8N_RELEASE_TYPE=stable
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_HIDE_USAGE_PAGE=true
+      - N8N_LICENSE_AUTO_RENEW_ENABLED=false
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
+      - N8N_RUNNERS_AUTH_TOKEN= 7e16413f925df10e5a94d4f6274d4e479bbeec51ead92eaa488e34e1013c21e4 # 使用 openssl rand -hex 32 生成
+      - N8N_NATIVE_PYTHON_RUNNER=true
+      - NODE_ENV=development
+      - N8N_DEFAULT_LOCALE=zh-CN
+      - N8N_ENTERPRISE_MOCK=true
+      - N8N_HOST=n8n.example.com
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://n8n.example.com/  # 请替换为实际的Webhook URL
+      - N8N_PROXY_HOPS=1
+      - TZ=Asia/Shanghai
+      - GENERIC_TIMEZONE=Asia/Shanghai
+    expose:
+      - "5678"
+      - "5679"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  task-runners:
+    image: deluxebear/runners:latest
+    container_name: n8n-runners
+    restart: unless-stopped
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-main:5679
+      - N8N_RUNNERS_AUTH_TOKEN=7e16413f925df10e5a94d4f6274d4e479bbeec51ead92eaa488e34e1013c21e4
+      - TZ=Asia/Shanghai
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:
+  caddy_data:
+  caddy_config:

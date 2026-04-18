@@ -181,6 +181,7 @@ export class WorkflowExecute {
 			resultData: {
 				pinData,
 			},
+			resumeToken: this.runExecutionData.resumeToken,
 		});
 
 		return this.processRunExecutionData(workflow);
@@ -295,6 +296,7 @@ export class WorkflowExecute {
 				waitingExecution,
 				waitingExecutionSource,
 			},
+			resumeToken: this.runExecutionData.resumeToken,
 		});
 
 		// Still passing the original workflow here, because the WorkflowDataProxy
@@ -1251,6 +1253,12 @@ export class WorkflowExecute {
 			);
 		}
 
+		if (nodeType.supplyData) {
+			throw new ApplicationError(
+				`The node "${node.type}" has a "supplyData" method but no "execute" method.`,
+			);
+		}
+
 		const isDeclarativeNode = nodeType.description.requestDefaults !== undefined;
 		if (nodeType.webhook && !isDeclarativeNode) {
 			// Check if the node have requestDefaults(Declarative Node),
@@ -1432,6 +1440,8 @@ export class WorkflowExecute {
 			// eslint-disable-next-line complexity
 			const returnPromise = (async () => {
 				try {
+					await workflow.expression.acquireIsolate();
+
 					// Establish the execution context
 					await establishExecutionContext(
 						workflow,
@@ -1502,6 +1512,9 @@ export class WorkflowExecute {
 					executionData =
 						this.runExecutionData.executionData!.nodeExecutionStack.shift() as IExecuteData;
 					executionNode = executionData.node;
+
+					// Reset per-node dynamic credential flag before each node execution
+					this.additionalData.currentNodeUsedDynamicCredentials = false;
 
 					const taskStartedData: ITaskStartedData = {
 						startTime: Date.now(),
@@ -1819,6 +1832,8 @@ export class WorkflowExecute {
 						executionTime: Date.now() - taskStartedData.startTime,
 						metadata: executionData.metadata,
 						executionStatus: this.runExecutionData.waitTill ? 'waiting' : 'success',
+						usedDynamicCredentials:
+							this.additionalData.currentNodeUsedDynamicCredentials || undefined,
 					};
 
 					if (executionError !== undefined) {
@@ -2297,6 +2312,13 @@ export class WorkflowExecute {
 					}
 
 					return fullRunData;
+				})
+				.finally(async () => {
+					try {
+						await workflow.expression.releaseIsolate();
+					} catch (error) {
+						Container.get(ErrorReporter).error(error);
+					}
 				});
 
 			return await returnPromise.then(resolve);

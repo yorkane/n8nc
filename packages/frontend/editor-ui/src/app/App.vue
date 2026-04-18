@@ -31,7 +31,8 @@ const rootStore = useRootStore();
 const settingsStore = useSettingsStore();
 const ndvStore = useNDVStore();
 const { setAppZIndexes } = useStyles();
-const { toastBottomOffset, askAiFloatingButtonBottomOffset } = useFloatingUiOffsets();
+const { toastBottomOffset, toastRightOffset, askAiFloatingButtonBottomOffset } =
+	useFloatingUiOffsets();
 
 // Initialize undo/redo
 useHistoryHelper(route);
@@ -119,6 +120,7 @@ const setLayoutRef = (el: Element) => {
 };
 
 useExposeCssVar('--toast--offset', toastBottomOffset);
+useExposeCssVar('--toast--right', toastRightOffset);
 useExposeCssVar('--ask-assistant--floating-button--margin-bottom', askAiFloatingButtonBottomOffset);
 </script>
 

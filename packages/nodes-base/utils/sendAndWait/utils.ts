@@ -1,5 +1,5 @@
 import isbot from 'isbot';
-import { getWebhookSandboxCSP } from 'n8n-core';
+import { getHtmlSandboxCSP, isFormHtmlSandboxingDisabled } from 'n8n-core';
 import type {
 	FormFieldsParameter,
 	IDataObject,
@@ -344,7 +344,13 @@ export async function sendAndWaitWebhook(this: IWebhookFunctions) {
 		| 'freeText'
 		| 'customForm';
 
-	if (responseType === 'approval' && isbot(req.headers['user-agent'])) {
+	if (
+		responseType === 'approval' &&
+		(isbot(req.headers['user-agent']) ||
+			// Microsoft Teams link preview service (SkypeSpaces) automatically fetches
+			// URLs in chat messages for rich previews, which would trigger the approval
+			req.headers['user-agent']?.includes('SkypeSpaces'))
+	) {
 		res.send('');
 		return { noWebhookResponse: true };
 	}
@@ -373,7 +379,9 @@ export async function sendAndWaitWebhook(this: IWebhookFunctions) {
 				customCss,
 			});
 
-			res.setHeader('Content-Security-Policy', getWebhookSandboxCSP());
+			if (!isFormHtmlSandboxingDisabled()) {
+				res.setHeader('Content-Security-Policy', getHtmlSandboxCSP());
+			}
 			res.render('form-trigger', data);
 
 			return {
@@ -425,7 +433,9 @@ export async function sendAndWaitWebhook(this: IWebhookFunctions) {
 				customCss,
 			});
 
-			res.setHeader('Content-Security-Policy', getWebhookSandboxCSP());
+			if (!isFormHtmlSandboxingDisabled()) {
+				res.setHeader('Content-Security-Policy', getHtmlSandboxCSP());
+			}
 			res.render('form-trigger', data);
 
 			return {
@@ -481,7 +491,6 @@ export function getSendAndWaitConfig(context: IExecuteFunctions): SendAndWaitCon
 
 	const responseType = context.getNodeParameter('responseType', 0, 'approval') as string;
 
-	context.setSignatureValidationRequired();
 	const approvedSignedResumeUrl = context.getSignedResumeUrl({ approved: 'true' });
 
 	if (responseType === 'freeText' || responseType === 'customForm') {

@@ -1,14 +1,7 @@
 name: 'CI: Check PR Title'
 
 on:
-  pull_request:
-    types:
-      - opened
-      - edited
-      - synchronize
-    branches:
-      - 'master'
-      - '1.x'
+  workflow_dispatch:
 
 jobs:
   check-pr-title:

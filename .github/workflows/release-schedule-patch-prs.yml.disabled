@@ -1,0 +1,15 @@
+name: 'Release: Schedule Patch Release PRs'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-patch-prs:
+    name: Create patch release PR (${{ matrix.track }})
+    strategy:
+      matrix:
+        track: [stable, beta, v1]
+    uses: ./.github/workflows/release-create-patch-pr.yml
+    secrets: inherit
+    with:
+      track: ${{ matrix.track }}
