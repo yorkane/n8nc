@@ -16,6 +16,8 @@ on:
         type: boolean
   push:
     branches: [chs]
+    paths:
+      - 'docker/images/n8n/Dockerfile.slim'
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -141,6 +143,9 @@ jobs:
       always() && (
         needs.sync-upstream.result == 'success' ||
         needs.sync-upstream.result == 'skipped'
+      ) && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'push'
       )
     steps:
       - name: Checkout code
