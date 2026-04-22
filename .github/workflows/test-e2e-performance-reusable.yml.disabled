@@ -3,6 +3,8 @@ name: 'Test: E2E Performance'
 on:
   workflow_call:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
 
 jobs:
   build-and-test-performance:
