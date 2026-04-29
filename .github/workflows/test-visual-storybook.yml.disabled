@@ -1,16 +1,27 @@
 name: 'Test: Visual Storybook'
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'packages/frontend/@n8n/storybook/**'
+      - 'packages/frontend/@n8n/chat/**'
+      - 'packages/frontend/@n8n/design-system/**'
+      - '.github/workflows/test-visual-storybook.yml'
 concurrency:
-  group: storybook-${{ github.ref }}
+  group: storybook-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   cloudflare:
     name: Cloudflare Pages
     if: |
-      github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'community')
+      !contains(github.event.pull_request.labels.*.name, 'community') &&
+      github.repository == 'n8n-io/n8n'
     runs-on: blacksmith-2vcpu-ubuntu-2204
     permissions:
       contents: read

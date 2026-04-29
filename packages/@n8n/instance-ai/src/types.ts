@@ -20,6 +20,7 @@ import type { DomainAccessTracker } from './domain-access/domain-access-tracker'
 import type { InstanceAiEventBus } from './event-bus/event-bus.interface';
 import type { Logger } from './logger';
 import type { IterationLog } from './storage/iteration-log';
+import type { IdRemapper, TraceIndex, TraceWriter } from './tracing/trace-replay';
 import type {
 	VerificationResult,
 	WorkflowBuildOutcome,
@@ -531,6 +532,8 @@ export interface InstanceAiContext {
 	 * Used to register `parse-file` and supply data to the parser.
 	 */
 	currentUserAttachments?: InstanceAiAttachment[];
+	/** Optional logger for diagnostics from domain tools. */
+	logger?: Logger;
 }
 
 // ── Task storage ─────────────────────────────────────────────────────────────
@@ -707,6 +710,8 @@ export interface InstanceAiToolTraceOptions {
 	metadata?: Record<string, unknown>;
 }
 
+export type TraceReplayMode = 'record' | 'replay' | 'off';
+
 export interface InstanceAiTraceContext {
 	projectName: string;
 	traceKind: 'message_turn' | 'detached_subagent';
@@ -729,6 +734,14 @@ export interface InstanceAiTraceContext {
 	) => Promise<void>;
 	toHeaders: (run: InstanceAiTraceRun) => Record<string, string>;
 	wrapTools: (tools: ToolsInput, options?: InstanceAiToolTraceOptions) => ToolsInput;
+	/** Trace replay mode: 'record' captures tool I/O, 'replay' remaps IDs, 'off' disables. */
+	replayMode: TraceReplayMode;
+	/** Shared ID remapper instance — available in 'replay' mode. */
+	idRemapper?: IdRemapper;
+	/** Trace index for cursor-based replay — available in 'replay' mode. */
+	traceIndex?: TraceIndex;
+	/** Trace writer for recording — available in 'record' mode. */
+	traceWriter?: TraceWriter;
 }
 
 // ── Background task spawning ─────────────────────────────────────────────────
@@ -846,6 +859,9 @@ export interface OrchestrationContext {
 	/** Summaries of currently running background tasks in this thread.
 	 *  Used to give sub-agents thread-state awareness (what else is happening). */
 	getRunningTaskSummaries?: () => Array<{ taskId: string; role: string; goal?: string }>;
+	/** IANA time zone for the current user (e.g. "Europe/Helsinki"). Propagated to sub-agents
+	 *  so they can resolve "now" consistently with the orchestrator. */
+	timeZone?: string;
 }
 
 // ── Agent factory options ────────────────────────────────────────────────────
