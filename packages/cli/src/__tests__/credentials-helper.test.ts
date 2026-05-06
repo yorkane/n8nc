@@ -7,7 +7,13 @@ import {
 import { Container } from '@n8n/di';
 import { EntityNotFoundError } from '@n8n/typeorm';
 import { mock } from 'jest-mock-extended';
-import { type InstanceSettings, Cipher } from 'n8n-core';
+import {
+	type InstanceSettings,
+	Cipher,
+	CipherAes256GCM,
+	CipherAes256CBC,
+	EncryptionKeyProxy,
+} from 'n8n-core';
 import type {
 	IAuthenticateGeneric,
 	ICredentialDataDecryptedObject,
@@ -41,7 +47,12 @@ describe('CredentialsHelper', () => {
 	const dynamicCredentialProxy = new DynamicCredentialsProxy(mockLogger);
 
 	// Setup cipher for testing
-	const cipher = new Cipher(mock<InstanceSettings>({ encryptionKey: 'test_key_for_testing' }));
+	const cipher = new Cipher(
+		mock<InstanceSettings>({ encryptionKey: 'test_key_for_testing' }),
+		new CipherAes256GCM(),
+		new CipherAes256CBC(),
+		new EncryptionKeyProxy(),
+	);
 	Container.set(Cipher, cipher);
 
 	const credentialsHelper = new CredentialsHelper(

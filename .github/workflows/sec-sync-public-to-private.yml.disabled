@@ -1,11 +1,16 @@
 # Sync n8n-io/n8n to n8n-io/n8n-private
 #
-# Manual workflow_dispatch only. Use force input for conflict recovery after failed cherry-pick.
-# When private is ahead of public, sync is skipped unless force is enabled.
+# Runs hourly to keep private in sync with public.
+# Can also be triggered manually for conflict recovery.
+#
+# Scheduled runs only sync if private is not ahead of public.
+# Manual runs always sync (for conflict recovery after failed cherry-pick).
 
 name: 'Security: Sync from Public'
 
 on:
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -35,6 +40,9 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Sync master from public
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE: ${{ inputs.force }}
         run: |
           git fetch https://github.com/n8n-io/n8n.git master:public-master
 
@@ -42,7 +50,10 @@ jobs:
           AHEAD_COUNT=$(git rev-list public-master..HEAD --pretty=oneline --grep="chore: Bundle" --invert-grep --count)
 
           if [ "$AHEAD_COUNT" -gt 0 ]; then
-            if [ "${{ inputs.force }}" != "true" ]; then
+            if [ "$EVENT_NAME" = "schedule" ]; then
+              echo "Private is $AHEAD_COUNT commit(s) ahead of public, skipping scheduled sync"
+              exit 0
+            elif [ "$FORCE" != "true" ]; then
               echo "Private is $AHEAD_COUNT commit(s) ahead of public, skipping (force not enabled)"
               exit 0
             else
@@ -54,6 +65,9 @@ jobs:
           git push origin master --force-with-lease
 
       - name: Sync 1.x from public
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE: ${{ inputs.force }}
         run: |
           git fetch https://github.com/n8n-io/n8n.git 1.x:public-1.x
           git checkout 1.x
@@ -62,7 +76,10 @@ jobs:
           AHEAD_COUNT=$(git rev-list public-1.x..HEAD --pretty=oneline --grep="chore: Bundle" --invert-grep --count)
 
           if [ "$AHEAD_COUNT" -gt 0 ]; then
-            if [ "${{ inputs.force }}" != "true" ]; then
+            if [ "$EVENT_NAME" = "schedule" ]; then
+              echo "Private 1.x is $AHEAD_COUNT commit(s) ahead of public, skipping scheduled sync"
+              exit 0
+            elif [ "$FORCE" != "true" ]; then
               echo "Private 1.x is $AHEAD_COUNT commit(s) ahead of public, skipping (force not enabled)"
               exit 0
             else

@@ -113,6 +113,15 @@ function resolveArtifactName(artifact: ArtifactInfo): string {
 	color: var(--text-color--subtler);
 }
 
+.artifactCard {
+	max-width: 90%;
+	margin: var(--spacing--sm) 0;
+
+	+ .artifactCard {
+		margin-top: 0;
+	}
+}
+
 .reasoningContent {
 	padding: var(--spacing--4xs) var(--spacing--xs);
 	border-left: 2px solid var(--color--foreground);

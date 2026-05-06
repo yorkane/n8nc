@@ -46,11 +46,14 @@ import InstanceAiArtifactsPanel from './components/InstanceAiArtifactsPanel.vue'
 import InstanceAiStatusBar from './components/InstanceAiStatusBar.vue';
 import InstanceAiConfirmationPanel from './components/InstanceAiConfirmationPanel.vue';
 import InstanceAiPreviewTabBar from './components/InstanceAiPreviewTabBar.vue';
+import AgentSection from './components/AgentSection.vue';
+import { collectActiveBuilderAgents, messageHasVisibleContent } from './builderAgents';
 import CreditWarningBanner from '@/features/ai/assistant/components/Agent/CreditWarningBanner.vue';
 import CreditsSettingsDropdown from '@/features/ai/assistant/components/Agent/CreditsSettingsDropdown.vue';
 import { usePageRedirectionHelper } from '@/app/composables/usePageRedirectionHelper';
 import InstanceAiWorkflowPreview from './components/InstanceAiWorkflowPreview.vue';
 import InstanceAiDataTablePreview from './components/InstanceAiDataTablePreview.vue';
+import { TabsContent, TabsRoot } from 'reka-ui';
 
 const props = defineProps<{
 	threadId?: string;
@@ -72,6 +75,16 @@ function goToSettings() {
 }
 
 documentTitle.set(i18n.baseText('instanceAi.view.title'));
+
+// Running builders render in a dedicated bottom section of the conversation.
+// Once a builder finishes it falls out of this list and AgentTimeline renders
+// it in its natural chronological slot.
+const builderAgents = computed(() => collectActiveBuilderAgents(store.messages));
+
+// Assistant messages whose only content has been extracted to the bottom
+// builder section (or which haven't produced anything renderable yet) would
+// otherwise leave an empty wrapper in the list — filter them out.
+const displayedMessages = computed(() => store.messages.filter(messageHasVisibleContent));
 
 // --- Execution tracking via push events ---
 const executionTracking = useExecutionPushEvents();
@@ -321,11 +334,12 @@ watch(
 	() => props.threadId,
 	(threadId) => {
 		if (!threadId) {
-			// /instance-ai base route (no :threadId) — thread appears in sidebar
-			// only after the first message is sent (via syncThread in sendMessage)
-			if (store.sseState === 'disconnected') {
-				reconnectThreadIfHydrationApplied(store.currentThreadId);
-			}
+			// /instance-ai base route (no :threadId) — reset to a clean empty
+			// state. Without this, `currentThreadId` keeps pointing at the
+			// last thread and the sidebar highlights it alongside the empty
+			// main view (AI-2408). A new thread is created on the first
+			// `sendMessage` via `syncThread`.
+			store.clearCurrentThread();
 			return;
 		}
 		if (threadId === store.currentThreadId) {
@@ -511,12 +525,21 @@ function handleStop() {
 							>
 								<TransitionGroup name="message-slide">
 									<InstanceAiMessage
-										v-for="message in store.messages"
+										v-for="message in displayedMessages"
 										:key="message.id"
 										:message="message"
-										:class="$style.message"
 									/>
 								</TransitionGroup>
+								<!-- Builder sub-agents are extracted from their parent assistant
+									 messages and rendered here so they always sit at the bottom
+									 of the conversation. -->
+								<div v-if="builderAgents.length" :class="$style.builderAgents">
+									<AgentSection
+										v-for="builder in builderAgents"
+										:key="builder.agentId"
+										:agent-node="builder"
+									/>
+								</div>
 								<InstanceAiConfirmationPanel />
 							</div>
 						</N8nScrollArea>
@@ -592,14 +615,22 @@ function handleStop() {
 			@resizestart="isResizingPreview = true"
 			@resizeend="isResizingPreview = false"
 		>
-			<div :class="$style.previewPanel">
+			<TabsRoot
+				v-model="preview.activeTabId.value"
+				orientation="horizontal"
+				:class="$style.previewPanel"
+			>
 				<InstanceAiPreviewTabBar
 					:tabs="preview.allArtifactTabs.value"
 					:active-tab-id="preview.activeTabId.value"
-					@update:active-tab-id="preview.selectTab($event)"
 					@close="preview.closePreview()"
 				/>
-				<div :class="$style.previewContent">
+				<TabsContent
+					v-for="tab in preview.allArtifactTabs.value"
+					:key="tab.id"
+					:value="tab.id"
+					:class="$style.previewContent"
+				>
 					<InstanceAiWorkflowPreview
 						v-if="preview.activeWorkflowId.value"
 						ref="workflowPreview"
@@ -614,8 +645,8 @@ function handleStop() {
 						:project-id="preview.activeDataTableProjectId.value"
 						:refresh-key="preview.dataTableRefreshKey.value"
 					/>
-				</div>
-			</div>
+				</TabsContent>
+			</TabsRoot>
 		</N8nResizeWrapper>
 	</div>
 </template>
@@ -766,8 +797,11 @@ function handleStop() {
 	gap: var(--spacing--xs);
 }
 
-.message {
-	width: 90%;
+.builderAgents {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing--2xs);
+	margin-top: var(--spacing--xs);
 }
 
 .scrollButtonContainer {
