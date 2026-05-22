@@ -51,7 +51,7 @@ const disclaimerHtml = computed(() => {
 	margin: 0;
 	font-size: var(--font-size--2xs);
 	font-style: italic;
-	color: var(--color--text--tint-1);
+	color: var(--text-color--subtler);
 
 	a {
 		color: inherit;

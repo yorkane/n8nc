@@ -1,6 +1,16 @@
 name: 'Build: Base Image'
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'docker/images/n8n-base/Dockerfile'
+      - '.github/workflows/build-base-image.yml'
+  pull_request:
+    paths:
+      - 'docker/images/n8n-base/Dockerfile'
+      - '.github/workflows/build-base-image.yml'
   workflow_dispatch:
     inputs:
       push:
@@ -15,7 +25,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_version: ['22', '24.15.0', '26']
+        # Node 26 requires alpine 3.23 on DHI (3.22 pairing isn't published).
+        # While we're on alpine 3.22 awaiting NODE-4184 (graphicsmagick → sharp
+        # migration that unblocks 3.23), Node 26 base builds can't succeed.
+        # Restore '26' to this matrix once 3.23 is back.
+        node_version: ['22', '24.15.0']
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -50,9 +64,9 @@ jobs:
           build-args: |
             NODE_VERSION=${{ matrix.node_version }}
           platforms: linux/amd64,linux/arm64
-          provenance: ${{ github.event_name == 'workflow_dispatch' && inputs.push == true }}
-          sbom: ${{ github.event_name == 'workflow_dispatch' && inputs.push == true }}
-          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push == true }}
+          provenance: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == true) }}
+          sbom: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == true) }}
+          push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == true) }}
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/base:${{ matrix.node_version }}-${{ github.sha }}
             ${{ secrets.DOCKER_USERNAME }}/base:${{ matrix.node_version }}

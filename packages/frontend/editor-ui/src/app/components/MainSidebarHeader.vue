@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onClickOutside, type VueInstance } from '@vueuse/core';
-import { computed, ref, type Ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import { I18nT } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import {
@@ -12,13 +12,12 @@ import {
 	N8nIconButton,
 	N8nNavigationDropdown,
 } from '@n8n/design-system';
-import { i18nVersion, useI18n } from '@n8n/i18n';
+import { useI18n } from '@n8n/i18n';
 import { VIEWS } from '@/app/constants';
 import { useSourceControlStore } from '@/features/integrations/sourceControl.ee/sourceControl.store';
 import KeyboardShortcutTooltip from '@/app/components/KeyboardShortcutTooltip.vue';
 import { useSettingsStore } from '@/app/stores/settings.store';
 import { useGlobalEntityCreation } from '@/app/composables/useGlobalEntityCreation';
-import { localizeMenuTitlesById } from '@/app/utils/menuLocalizationUtils';
 defineProps<{
 	isCollapsed: boolean;
 	hideCreate?: boolean;
@@ -57,26 +56,6 @@ const {
 	upgradeLabel,
 	hasPermissionToCreateProjects,
 } = useGlobalEntityCreation();
-
-const zhMenuTitleById = {
-	workflow: '工作流',
-	credential: '凭据',
-	'create-project': '项目',
-	'workflow-title': '创建于',
-	'credential-title': '创建于',
-};
-
-const localizedMenu = computed(() => {
-	// Ensure recomputation when locale messages are loaded/switched at runtime.
-	// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-	i18nVersion.value;
-
-	if (!i18n.locale.toLowerCase().startsWith('zh')) {
-		return menu.value;
-	}
-
-	return localizeMenuTitlesById(menu.value, zhMenuTitleById);
-});
 </script>
 
 <template>
@@ -120,7 +99,8 @@ const localizedMenu = computed(() => {
 			v-if="!hideCreate"
 			ref="createBtn"
 			data-test-id="universal-add"
-			:menu="localizedMenu"
+			:menu="menu"
+			:teleport="true"
 			@select="handleMenuSelect"
 		>
 			<N8nIconButton

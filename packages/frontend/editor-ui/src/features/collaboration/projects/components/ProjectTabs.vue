@@ -7,7 +7,6 @@ import { useI18n } from '@n8n/i18n';
 import type { BaseTextKey } from '@n8n/i18n';
 import type { TabOptions } from '@n8n/design-system';
 import { processDynamicTabs, type DynamicTabOptions } from '@/app/utils/modules/tabUtils';
-import { DATA_TABLE_VIEW, PROJECT_DATA_TABLES } from '@/features/core/dataTable/constants';
 
 import { N8nTabs } from '@n8n/design-system';
 import { useProjectsStore } from '../projects.store';
@@ -117,19 +116,15 @@ const options = computed<Array<TabOptions<string>>>(() => {
 
 	if (props.additionalTabs?.length) {
 		const processedAdditionalTabs = processDynamicTabs(props.additionalTabs, projectId.value);
-		const localizedAdditionalTabs = processedAdditionalTabs.map((tab) => {
-			if (
-				locale.locale.toLowerCase().startsWith('zh') &&
-				(tab.value === DATA_TABLE_VIEW || tab.value === PROJECT_DATA_TABLES)
-			) {
-				return {
-					...tab,
-					label: locale.baseText('dataTable.dataTables'),
-				};
+		for (const processed of processedAdditionalTabs) {
+			const { insertAfter, ...tab } = processed;
+			const anchorIndex = insertAfter ? tabs.findIndex((t) => t.value === insertAfter) : -1;
+			if (anchorIndex !== -1) {
+				tabs.splice(anchorIndex + 1, 0, tab);
+			} else {
+				tabs.push(tab);
 			}
-			return tab;
-		});
-		tabs.push(...localizedAdditionalTabs);
+		}
 	}
 
 	if (props.showSettings) {
