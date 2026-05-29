@@ -2,7 +2,11 @@ import type { InstanceAiThreadStatusResponse } from '@n8n/api-types';
 import { nanoid } from 'nanoid';
 
 import type { InstanceAiTraceContext } from '../types';
-import type { InstanceAiLivenessPolicy } from './liveness-policy';
+import type {
+	InstanceAiLivenessPolicy,
+	InstanceAiLivenessSurface,
+	InstanceAiLivenessTimeoutReason,
+} from './liveness-policy';
 
 export interface ActiveRunState {
 	runId: string;
@@ -72,10 +76,17 @@ export interface BackgroundTaskStatusSnapshot {
 	threadId: string;
 }
 
+export interface RunStateTimeoutDetails {
+	reason: InstanceAiLivenessTimeoutReason;
+	surface: InstanceAiLivenessSurface;
+	timeoutMs: number;
+	elapsedMs: number;
+	idleMs: number;
+}
+
 export interface StartRunOptions<TUser> {
 	threadId: string;
 	user: TUser;
-	researchMode?: boolean;
 	messageGroupId?: string;
 }
 
@@ -91,8 +102,6 @@ export class RunStateRegistry<TUser = unknown> {
 	private readonly pendingConfirmations = new Map<string, PendingConfirmation>();
 
 	private readonly threadUsers = new Map<string, TUser>();
-
-	private readonly threadResearchMode = new Map<string, boolean>();
 
 	private readonly threadMessageGroupId = new Map<string, string>();
 
@@ -115,9 +124,6 @@ export class RunStateRegistry<TUser = unknown> {
 			lastActivityAt: now,
 		});
 		this.threadUsers.set(options.threadId, options.user);
-		if (options.researchMode !== undefined) {
-			this.threadResearchMode.set(options.threadId, options.researchMode);
-		}
 
 		// When creating a fresh message group (no reuse), clean up the previous
 		// one so runIdsByMessageGroup doesn't leak entries indefinitely.
@@ -348,10 +354,6 @@ export class RunStateRegistry<TUser = unknown> {
 		return this.threadUsers.get(threadId);
 	}
 
-	getThreadResearchMode(threadId: string): boolean | undefined {
-		return this.threadResearchMode.get(threadId);
-	}
-
 	setTimeZone(threadId: string, timeZone: string): void {
 		this.threadTimeZones.set(threadId, timeZone);
 	}
@@ -372,8 +374,12 @@ export class RunStateRegistry<TUser = unknown> {
 		activeThreadIds: string[];
 		suspendedThreadIds: string[];
 		confirmationRequestIds: string[];
+		activeTimeouts: Record<string, RunStateTimeoutDetails>;
+		suspendedTimeouts: Record<string, RunStateTimeoutDetails>;
+		confirmationTimeouts: Record<string, RunStateTimeoutDetails>;
 	} {
 		const activeThreadIds: string[] = [];
+		const activeTimeouts: Record<string, RunStateTimeoutDetails> = {};
 		for (const [threadId, run] of this.activeRuns) {
 			if (this.hasPendingConfirmationForThread(threadId)) continue;
 
@@ -387,10 +393,12 @@ export class RunStateRegistry<TUser = unknown> {
 			});
 			if (decision.action === 'timeout') {
 				activeThreadIds.push(threadId);
+				activeTimeouts[threadId] = decision;
 			}
 		}
 
 		const suspendedThreadIds: string[] = [];
+		const suspendedTimeouts: Record<string, RunStateTimeoutDetails> = {};
 		for (const [threadId, run] of this.suspendedRuns) {
 			const startedAt = run.startedAt ?? run.createdAt;
 			const lastActivityAt = run.lastActivityAt ?? run.createdAt;
@@ -402,9 +410,11 @@ export class RunStateRegistry<TUser = unknown> {
 			});
 			if (decision.action === 'timeout') {
 				suspendedThreadIds.push(threadId);
+				suspendedTimeouts[threadId] = decision;
 			}
 		}
 		const confirmationRequestIds: string[] = [];
+		const confirmationTimeouts: Record<string, RunStateTimeoutDetails> = {};
 		for (const [reqId, pending] of this.pendingConfirmations) {
 			const startedAt = pending.startedAt ?? pending.createdAt;
 			const lastActivityAt = pending.lastActivityAt ?? pending.createdAt;
@@ -416,9 +426,17 @@ export class RunStateRegistry<TUser = unknown> {
 			});
 			if (decision.action === 'timeout') {
 				confirmationRequestIds.push(reqId);
+				confirmationTimeouts[reqId] = decision;
 			}
 		}
-		return { activeThreadIds, suspendedThreadIds, confirmationRequestIds };
+		return {
+			activeThreadIds,
+			suspendedThreadIds,
+			confirmationRequestIds,
+			activeTimeouts,
+			suspendedTimeouts,
+			confirmationTimeouts,
+		};
 	}
 
 	/**
@@ -440,7 +458,7 @@ export class RunStateRegistry<TUser = unknown> {
 
 	/**
 	 * Remove all per-thread state: active/suspended runs, confirmations,
-	 * user, research mode, and message-group mappings.
+	 * user, time zone, and message-group mappings.
 	 * Returns the cancelled active/suspended runs so the caller can abort them.
 	 */
 	clearThread(
@@ -455,7 +473,6 @@ export class RunStateRegistry<TUser = unknown> {
 		if (active) this.activeRuns.delete(threadId);
 
 		this.threadUsers.delete(threadId);
-		this.threadResearchMode.delete(threadId);
 		this.threadTimeZones.delete(threadId);
 
 		const groupId = this.threadMessageGroupId.get(threadId);
@@ -480,7 +497,6 @@ export class RunStateRegistry<TUser = unknown> {
 		this.suspendedRuns.clear();
 		this.pendingConfirmations.clear();
 		this.threadUsers.clear();
-		this.threadResearchMode.clear();
 		this.threadTimeZones.clear();
 		this.threadMessageGroupId.clear();
 		this.runIdsByMessageGroup.clear();

@@ -1380,6 +1380,9 @@ export interface INode {
 	executeOnce?: boolean;
 	onError?: OnError;
 	continueOnFail?: boolean;
+	customTelemetryTags?: {
+		tag?: Array<{ key: string; value: string }>;
+	};
 	parameters: INodeParameters;
 	credentials?: INodeCredentials;
 	webhookId?: string;
@@ -1906,6 +1909,16 @@ export interface INodePropertyCollection {
 	name: string;
 	values: INodeProperties[];
 	builderHint?: IParameterBuilderHint;
+}
+
+/**
+ * One variation of `extraTypeDefContent`, optionally gated by `displayOptions`
+ * so per-mode / per-resource / per-operation examples land only in their
+ * corresponding narrowed type without cross-bleed.
+ */
+export interface IBuilderHintVariation {
+	content: string;
+	displayOptions?: IDisplayOptions;
 }
 
 export interface IParameterBuilderHint {
@@ -2555,6 +2568,14 @@ export interface IBuilderHint {
 	searchHint?: string;
 	/** Related nodes that work together with this node */
 	relatedNodes?: IRelatedNode[];
+	/**
+	 * Multi-line content (typically code examples wrapped in `<patterns>...</patterns>`)
+	 * emitted into the generated workflow-sdk `.d.ts` but NOT surfaced in
+	 * `nodes(action="search")` results. Each variation may carry `displayOptions`
+	 * so per-mode / per-resource / per-operation examples land only in their
+	 * corresponding narrowed type.
+	 */
+	extraTypeDefContent?: IBuilderHintVariation[];
 }
 
 export interface INodeTypeDescription extends INodeTypeBaseDescription {

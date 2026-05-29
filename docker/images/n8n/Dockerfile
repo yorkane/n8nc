@@ -6,7 +6,7 @@ FROM node:${NODE_VERSION}-alpine3.22 AS builder
 COPY ./compiled /usr/local/lib/node_modules/n8n
 RUN apk add --no-cache python3 make g++ && \
     cd /usr/local/lib/node_modules/n8n && \
-    npm rebuild sqlite3 isolated-vm
+    npm rebuild sqlite3
 
 FROM n8nio/base:${NODE_VERSION}
 

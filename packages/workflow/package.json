@@ -1,6 +1,6 @@
 {
   "name": "n8n-workflow",
-  "version": "2.21.1",
+  "version": "2.22.2",
   "description": "Workflow base code of n8n",
   "types": "dist/esm/index.d.ts",
   "module": "dist/esm/index.js",
@@ -73,6 +73,6 @@
     "jsonrepair": "catalog:"
   },
   "peerDependencies": {
-    "zod": ">=3.25.0 <4"
+    "zod": "catalog:"
   }
 }

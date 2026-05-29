@@ -111,7 +111,12 @@ import { InstanceAiCompactionService } from './compaction.service';
 import { ProxyTokenManager } from '@/services/proxy-token-manager';
 import { InstanceAiThreadRepository } from './repositories/instance-ai-thread.repository';
 import { TraceReplayState } from './trace-replay-state';
-import { INSTANCE_AI_RUN_TIMEOUT_REASON, InstanceAiLivenessService } from './liveness';
+import {
+	INSTANCE_AI_RUN_TIMEOUT_REASON,
+	InstanceAiLivenessService,
+	type InstanceAiConsumedRunTimeout,
+} from './liveness';
+import { buildInstanceAiRunTraceMetadata } from './run-trace-metadata';
 
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -902,6 +907,32 @@ export class InstanceAiService {
 		await this.finalizeMessageTraceRoot(runId, tracing, options);
 	}
 
+	private buildMessageTraceMetadata(
+		threadId: string,
+		runId: string,
+		options: {
+			status: MessageTraceFinalization['status'];
+			cancellationReason?: string;
+			runTimeout?: InstanceAiConsumedRunTimeout;
+		},
+	): Record<string, unknown> {
+		const traceOptions = {
+			status: options.status,
+			...(options.cancellationReason !== undefined
+				? { cancellationReason: options.cancellationReason }
+				: {}),
+			...(options.runTimeout !== undefined ? { runTimeout: options.runTimeout } : {}),
+		};
+
+		return {
+			completion_source: 'orchestrator',
+			...buildInstanceAiRunTraceMetadata(
+				this.eventBus.getEventsForRun(threadId, runId),
+				traceOptions,
+			),
+		};
+	}
+
 	private async finalizeRemainingMessageTraceRoots(
 		threadId: string,
 		options: MessageTraceFinalization,
@@ -1094,7 +1125,6 @@ export class InstanceAiService {
 		user: User,
 		threadId: string,
 		message: string,
-		researchMode?: boolean,
 		attachments?: InstanceAiAttachment[],
 		timeZone?: string,
 		pushRef?: string,
@@ -1103,7 +1133,6 @@ export class InstanceAiService {
 		const { runId, abortController, messageGroupId } = this.runState.startRun({
 			threadId,
 			user,
-			researchMode,
 		});
 
 		// Persist the user's time zone so checkpoint / replan / synthesize
@@ -1123,7 +1152,6 @@ export class InstanceAiService {
 			runId,
 			message,
 			abortController,
-			researchMode,
 			attachments,
 			messageGroupId,
 			timeZone,
@@ -1530,7 +1558,7 @@ export class InstanceAiService {
 	 */
 	async clearThreadState(threadId: string): Promise<void> {
 		// Clear run-state registry entries (active/suspended runs, confirmations,
-		// user, research mode, and message-group mappings).
+		// user, time zone, and message-group mappings).
 		const { active, suspended } = this.runState.clearThread(threadId);
 		if (active) {
 			active.abortController.abort();
@@ -1854,7 +1882,9 @@ export class InstanceAiService {
 		return {
 			status: 'error',
 			reason: 'invalid_confirmation_payload',
-			metadata: { completion_source: 'orchestrator' },
+			metadata: this.buildMessageTraceMetadata(args.threadId, args.runId, {
+				status: 'error',
+			}),
 		};
 	}
 
@@ -2135,7 +2165,6 @@ export class InstanceAiService {
 		threadId: string,
 		runId: string,
 		abortSignal: AbortSignal,
-		researchMode?: boolean,
 		messageGroupId?: string,
 		pushRef?: string,
 	) {
@@ -2260,7 +2289,6 @@ export class InstanceAiService {
 			domainTools,
 			abortSignal,
 			taskStorage,
-			researchMode,
 			timeZone: this.defaultTimeZone,
 			browserMcpConfig: this.instanceAiConfig.browserMcp
 				? { name: 'chrome-devtools', command: 'npx', args: ['-y', 'chrome-devtools-mcp@latest'] }
@@ -2481,7 +2509,6 @@ export class InstanceAiService {
 		user: User,
 		threadId: string,
 		message: string,
-		researchMode: boolean | undefined,
 		messageGroupId?: string,
 		isReplanFollowUp: boolean = false,
 		checkpoint?: { isCheckpointFollowUp: true; checkpointTaskId: string },
@@ -2494,7 +2521,6 @@ export class InstanceAiService {
 		const { runId, abortController } = this.runState.startRun({
 			threadId,
 			user,
-			researchMode,
 			messageGroupId,
 		});
 
@@ -2510,7 +2536,6 @@ export class InstanceAiService {
 			runId,
 			message,
 			abortController,
-			researchMode,
 			undefined,
 			messageGroupId,
 			timeZone,
@@ -2567,7 +2592,6 @@ export class InstanceAiService {
 				this.buildPlannedTaskFollowUpMessage('replan', action.graph, {
 					failedTask: action.failedTask,
 				}),
-				this.runState.getThreadResearchMode(threadId),
 				action.graph.messageGroupId,
 				true,
 			);
@@ -2588,7 +2612,6 @@ export class InstanceAiService {
 				activeUser,
 				threadId,
 				this.buildPlannedTaskFollowUpMessage('synthesize', action.graph),
-				this.runState.getThreadResearchMode(threadId),
 				action.graph.messageGroupId,
 			);
 			// Same rollback as replan: tick() transitioned to `completed`, but if
@@ -2628,7 +2651,6 @@ export class InstanceAiService {
 				this.buildPlannedTaskFollowUpMessage('checkpoint', graphAfterMark, {
 					checkpoint: checkpointRecord,
 				}),
-				this.runState.getThreadResearchMode(threadId),
 				action.graph.messageGroupId,
 				false,
 				{ isCheckpointFollowUp: true, checkpointTaskId: checkpoint.id },
@@ -2655,7 +2677,6 @@ export class InstanceAiService {
 			threadId,
 			action.graph.planRunId,
 			createInertAbortSignal(),
-			this.runState.getThreadResearchMode(threadId),
 			action.graph.messageGroupId,
 			// Route planned-task workflow runs (build agent, checkpoint verifications)
 			// to the user's iframe session so live execution push events reach the
@@ -2677,7 +2698,6 @@ export class InstanceAiService {
 		runId: string,
 		message: string,
 		abortController: AbortController,
-		researchMode?: boolean,
 		attachments?: InstanceAiAttachment[],
 		messageGroupId?: string,
 		timeZone?: string,
@@ -2727,7 +2747,6 @@ export class InstanceAiService {
 				threadId,
 				runId,
 				signal,
-				researchMode,
 				messageGroupId,
 				executionPushRef,
 			);
@@ -2774,7 +2793,6 @@ export class InstanceAiService {
 							})),
 						}
 					: {}),
-				...(researchMode !== undefined ? { researchMode } : {}),
 				...(messageGroupId ? { messageGroupId } : {}),
 			};
 			tracing = await createInstanceAiTraceContext({
@@ -3123,7 +3141,7 @@ export class InstanceAiService {
 				status: finalStatus,
 				outputText,
 				modelId,
-				metadata: { completion_source: 'orchestrator' },
+				metadata: this.buildMessageTraceMetadata(threadId, runId, { status: finalStatus }),
 			};
 			const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
 				threadId,
@@ -3149,7 +3167,8 @@ export class InstanceAiService {
 			}
 		} catch (error) {
 			if (signal.aborted) {
-				const cancellationReason = this.liveness.consumeRunTimedOut(runId)
+				const runTimeout = this.liveness.consumeRunTimeout(runId);
+				const cancellationReason = runTimeout.timedOut
 					? INSTANCE_AI_RUN_TIMEOUT_REASON
 					: getAbortReason(signal);
 				if (cancellationReason === INSTANCE_AI_RUN_TIMEOUT_REASON) {
@@ -3166,7 +3185,11 @@ export class InstanceAiService {
 				messageTraceFinalization = {
 					status: 'cancelled',
 					reason: cancellationReason,
-					metadata: { completion_source: 'orchestrator' },
+					metadata: this.buildMessageTraceMetadata(threadId, runId, {
+						status: 'cancelled',
+						cancellationReason,
+						runTimeout,
+					}),
 				};
 				const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
 					threadId,
@@ -3206,7 +3229,7 @@ export class InstanceAiService {
 			messageTraceFinalization = {
 				status: 'error',
 				reason: errorMessage,
-				metadata: { completion_source: 'orchestrator' },
+				metadata: this.buildMessageTraceMetadata(threadId, runId, { status: 'error' }),
 			};
 
 			const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
@@ -3237,6 +3260,9 @@ export class InstanceAiService {
 			this.domainAccessTrackersByThread.get(threadId)?.clearRun(runId);
 			if (messageTraceFinalization) {
 				await this.maybeFinalizeRunTraceRoot(runId, messageTraceFinalization);
+				if (messageTraceFinalization.status !== 'cancelled') {
+					this.liveness.consumeRunTimeout(runId);
+				}
 			}
 			// Clean up Mastra workflow snapshots unless the run is suspended (needed for resume).
 			// Mastra only persists snapshots on suspension and never deletes them on completion.
@@ -3334,7 +3360,6 @@ export class InstanceAiService {
 				user,
 				threadId,
 				this.buildPlannedTaskFollowUpMessage('checkpoint', graph, { checkpoint }),
-				this.runState.getThreadResearchMode(threadId),
 				messageGroupId,
 				false,
 				{ isCheckpointFollowUp: true, checkpointTaskId },
@@ -3700,7 +3725,9 @@ export class InstanceAiService {
 			messageTraceFinalization = {
 				status: finalStatus,
 				outputText,
-				metadata: { completion_source: 'orchestrator' },
+				metadata: this.buildMessageTraceMetadata(opts.threadId, opts.runId, {
+					status: finalStatus,
+				}),
 			};
 			const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
 				opts.threadId,
@@ -3712,6 +3739,7 @@ export class InstanceAiService {
 			});
 
 			if (result.status === 'completed') {
+				await this.countCreditsIfFirst(opts.user, opts.threadId, opts.runId);
 				this.telemetry.track('Builder sent message', {
 					thread_id: opts.threadId,
 					message: outputText,
@@ -3723,17 +3751,28 @@ export class InstanceAiService {
 		} catch (error) {
 			if (opts.signal.aborted) {
 				const messageGroupId = this.traceContextsByRunId.get(opts.runId)?.messageGroupId;
+				const runTimeout = this.liveness.consumeRunTimeout(opts.runId);
+				const cancellationReason = runTimeout.timedOut
+					? INSTANCE_AI_RUN_TIMEOUT_REASON
+					: getAbortReason(opts.signal);
+				if (cancellationReason === INSTANCE_AI_RUN_TIMEOUT_REASON) {
+					this.liveness.publishRunTimeoutNotice(opts.threadId, opts.runId);
+				}
 				this.evaluateTerminalResponse(opts.threadId, opts.runId, 'cancelled', {
 					messageGroupId,
 				});
 				await this.finalizeRunTracing(opts.runId, opts.tracing, {
 					status: 'cancelled',
-					reason: 'user_cancelled',
+					reason: cancellationReason,
 				});
 				messageTraceFinalization = {
 					status: 'cancelled',
-					reason: 'user_cancelled',
-					metadata: { completion_source: 'orchestrator' },
+					reason: cancellationReason,
+					metadata: this.buildMessageTraceMetadata(opts.threadId, opts.runId, {
+						status: 'cancelled',
+						cancellationReason,
+						runTimeout,
+					}),
 				};
 				const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
 					opts.threadId,
@@ -3744,7 +3783,7 @@ export class InstanceAiService {
 					opts.threadId,
 					opts.runId,
 					'cancelled',
-					'user_cancelled',
+					cancellationReason,
 					archivedWorkflowIds,
 				);
 				await this.saveAgentTreeSnapshot(opts.threadId, opts.runId, opts.snapshotStorage);
@@ -3771,7 +3810,9 @@ export class InstanceAiService {
 			messageTraceFinalization = {
 				status: 'error',
 				reason: errorMessage,
-				metadata: { completion_source: 'orchestrator' },
+				metadata: this.buildMessageTraceMetadata(opts.threadId, opts.runId, {
+					status: 'error',
+				}),
 			};
 
 			const archivedWorkflowIds = await this.reapAiTemporaryFromRun(
@@ -3796,6 +3837,9 @@ export class InstanceAiService {
 			// post-run planned-task dispatch.
 			if (messageTraceFinalization) {
 				await this.maybeFinalizeRunTraceRoot(opts.runId, messageTraceFinalization);
+				if (messageTraceFinalization.status !== 'cancelled') {
+					this.liveness.consumeRunTimeout(opts.runId);
+				}
 			}
 			// Post-run planned-task wiring — mirror the executeRun finally.
 			// Resumed ordinary-chat runs also need to drive the scheduler in case
@@ -3955,7 +3999,6 @@ export class InstanceAiService {
 							user,
 							opts.threadId,
 							`<background-task-completed>\n${payload}\n</background-task-completed>\n\n${AUTO_FOLLOW_UP_MESSAGE}`,
-							this.runState.getThreadResearchMode(opts.threadId),
 							task.messageGroupId,
 						);
 					}
@@ -4137,6 +4180,10 @@ export class InstanceAiService {
 		suspended: SuspendedRunState<User>,
 		reason = 'user_cancelled',
 	): Promise<void> {
+		const runTimeout =
+			reason === INSTANCE_AI_RUN_TIMEOUT_REASON
+				? this.liveness.consumeRunTimeout(suspended.runId)
+				: undefined;
 		if (reason === INSTANCE_AI_RUN_TIMEOUT_REASON) {
 			this.liveness.publishRunTimeoutNotice(suspended.threadId, suspended.runId);
 		}
@@ -4172,7 +4219,11 @@ export class InstanceAiService {
 		await this.maybeFinalizeRunTraceRoot(suspended.runId, {
 			status: 'cancelled',
 			reason,
-			metadata: { completion_source: 'orchestrator' },
+			metadata: this.buildMessageTraceMetadata(suspended.threadId, suspended.runId, {
+				status: 'cancelled',
+				cancellationReason: reason,
+				...(runTimeout ? { runTimeout } : {}),
+			}),
 		});
 	}
 

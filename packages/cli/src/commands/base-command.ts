@@ -94,6 +94,7 @@ export abstract class BaseCommand<F = never> {
 			profilesSampleRate,
 			tracesSampleRate,
 			eventLoopBlockThreshold,
+			eventLoopBlockMaxEventsPerHour,
 		} = this.globalConfig.sentry;
 		await this.errorReporter.init({
 			serverType: this.instanceSettings.instanceType,
@@ -104,6 +105,7 @@ export abstract class BaseCommand<F = never> {
 			releaseDate: N8N_RELEASE_DATE,
 			withEventLoopBlockDetection: true,
 			eventLoopBlockThreshold,
+			eventLoopBlockMaxEventsPerHour,
 			tracesSampleRate,
 			profilesSampleRate,
 			healthEndpoint: resolveBackendHealthEndpointPath(this.globalConfig),

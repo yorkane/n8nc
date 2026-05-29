@@ -176,7 +176,6 @@ type BackgroundTaskFollowUpServiceInternals = {
 		getThreadUser: jest.MockedFunction<(threadId: string) => User | undefined>;
 		getActiveRunId: jest.MockedFunction<(threadId: string) => string | undefined>;
 		hasSuspendedRun: jest.MockedFunction<(threadId: string) => boolean>;
-		getThreadResearchMode: jest.MockedFunction<(threadId: string) => boolean | undefined>;
 	};
 	liveness: {
 		hasTimedOutActiveRunThread: jest.MockedFunction<(threadId: string) => boolean>;
@@ -211,7 +210,6 @@ type BackgroundTaskFollowUpServiceInternals = {
 			user: User,
 			threadId: string,
 			message: string,
-			researchMode?: boolean,
 			messageGroupId?: string,
 		) => Promise<string | undefined>
 	>;
@@ -262,7 +260,6 @@ function createBackgroundTaskFollowUpService({
 		getThreadUser: jest.fn((_threadId: string) => fakeUser),
 		getActiveRunId: jest.fn((_threadId: string) => undefined),
 		hasSuspendedRun: jest.fn((_threadId: string) => false),
-		getThreadResearchMode: jest.fn((_threadId: string) => false),
 	};
 	service.liveness = {
 		hasTimedOutActiveRunThread: jest.fn((threadId: string) =>
@@ -291,13 +288,8 @@ function createBackgroundTaskFollowUpService({
 		) => {},
 	);
 	service.startInternalFollowUpRun = jest.fn(
-		async (
-			_user: User,
-			_threadId: string,
-			_message: string,
-			_researchMode?: boolean,
-			_messageGroupId?: string,
-		) => 'run-follow-up',
+		async (_user: User, _threadId: string, _message: string, _messageGroupId?: string) =>
+			'run-follow-up',
 	);
 	service.queuePendingCheckpointReentry = jest.fn();
 	service.maybeReenterParentCheckpoint = jest.fn(
@@ -322,7 +314,7 @@ type StartRunServiceInternals = {
 	};
 	runState: {
 		startRun: jest.MockedFunction<
-			(options: { threadId: string; user: User; researchMode?: boolean }) => {
+			(options: { threadId: string; user: User }) => {
 				runId: string;
 				abortController: AbortController;
 				messageGroupId?: string;
@@ -533,6 +525,7 @@ type TerminalGuardOrderServiceInternals = {
 		getEventsForRuns: jest.Mock;
 		publish: jest.Mock;
 	};
+	liveness: { consumeRunTimeout: jest.Mock };
 	telemetry: { track: jest.Mock };
 	logger: { warn: jest.Mock; error: jest.Mock };
 	traceContextsByRunId: Map<string, { threadId: string; messageGroupId?: string }>;
@@ -540,6 +533,7 @@ type TerminalGuardOrderServiceInternals = {
 	finalizeRunTracing: jest.Mock;
 	saveAgentTreeSnapshot: jest.Mock;
 	reapAiTemporaryFromRun: jest.Mock;
+	countCreditsIfFirst: jest.Mock;
 	maybeFinalizeRunTraceRoot: jest.Mock;
 	schedulePlannedTasks: jest.Mock;
 	drainPendingCheckpointReentries: jest.Mock;
@@ -602,6 +596,7 @@ function createTerminalGuardOrderService(): TerminalGuardOrderServiceInternals {
 			events.push(event);
 		}),
 	};
+	service.liveness = { consumeRunTimeout: jest.fn(() => ({ timedOut: false })) };
 	service.telemetry = { track: jest.fn() };
 	service.logger = { warn: jest.fn(), error: jest.fn() };
 	service.traceContextsByRunId = new Map([
@@ -611,6 +606,7 @@ function createTerminalGuardOrderService(): TerminalGuardOrderServiceInternals {
 	service.finalizeRunTracing = jest.fn(async () => {});
 	service.saveAgentTreeSnapshot = jest.fn(async () => {});
 	service.reapAiTemporaryFromRun = jest.fn(async () => []);
+	service.countCreditsIfFirst = jest.fn(async () => {});
 	service.maybeFinalizeRunTraceRoot = jest.fn(async () => {});
 	service.schedulePlannedTasks = jest.fn(async () => {});
 	service.drainPendingCheckpointReentries = jest.fn(async () => {});
@@ -684,7 +680,6 @@ describe('InstanceAiService — background task auto-follow-up', () => {
 			fakeUser,
 			'thread-a',
 			expect.stringContaining('<background-task-completed>'),
-			false,
 			'group-1',
 		);
 	});
@@ -1218,6 +1213,10 @@ describe('InstanceAiService — agent tree snapshots', () => {
 });
 
 describe('InstanceAiService — terminal response guard wiring', () => {
+	beforeEach(() => {
+		jest.mocked(resumeAgentRun).mockReset();
+	});
+
 	it('publishes fallback output before run-finish on a silent completed run', () => {
 		const service = createTerminalGuardOrderService();
 
@@ -1293,6 +1292,37 @@ describe('InstanceAiService — terminal response guard wiring', () => {
 
 		expect(service.eventBus.events.map((event) => event.type)).toEqual(['error', 'run-finish']);
 		expect(service.saveAgentTreeSnapshot).toHaveBeenCalledWith('thread-a', 'run-1', {});
+	});
+
+	it('counts credits when a resumed run completes', async () => {
+		const service = createTerminalGuardOrderService();
+		const abortController = new AbortController();
+		jest.mocked(resumeAgentRun).mockResolvedValueOnce({
+			status: 'completed',
+			mastraRunId: 'mastra-1',
+			text: Promise.resolve('done'),
+			workSummary: { toolCalls: [], totalToolCalls: 0, totalToolErrors: 0 },
+		});
+
+		await service.processResumedStream(
+			{},
+			{},
+			{
+				runId: 'run-1',
+				mastraRunId: 'mastra-1',
+				threadId: 'thread-a',
+				user: fakeUser,
+				toolCallId: 'tool-call-1',
+				signal: abortController.signal,
+				abortController,
+				snapshotStorage: {},
+			},
+		);
+
+		expect(service.countCreditsIfFirst).toHaveBeenCalledWith(fakeUser, 'thread-a', 'run-1');
+		expect(service.telemetry.track).toHaveBeenCalledWith('Builder satisfied user intent', {
+			thread_id: 'thread-a',
+		});
 	});
 });
 
