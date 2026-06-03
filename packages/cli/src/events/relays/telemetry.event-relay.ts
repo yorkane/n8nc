@@ -29,6 +29,7 @@ import semver from 'semver';
 
 import config from '@/config';
 import { N8N_VERSION } from '@/constants';
+import { DynamicCredentialsProxy } from '@/credentials/dynamic-credentials-proxy';
 import { EventService } from '@/events/event.service';
 import type { RelayEventMap } from '@/events/maps/relay.event-map';
 import { determineFinalExecutionStatus } from '@/execution-lifecycle/shared/shared-hook-functions';
@@ -48,6 +49,21 @@ function limitNodeGraphStringSize(nodeGraphString: string): string {
 	return nodeGraphString;
 }
 
+function getExecutionTelemetryProperties(
+	telemetryMetadata: RelayEventMap['workflow-post-execute']['telemetryMetadata'],
+): ITelemetryTrackProperties {
+	const executionSource = telemetryMetadata?.source ?? 'user';
+
+	if (executionSource !== 'instance_ai') return { execution_source: executionSource };
+
+	const { mockDataSources } = telemetryMetadata ?? {};
+
+	return {
+		execution_source: executionSource,
+		...(mockDataSources?.length ? { mock_data_sources: mockDataSources.join(',') } : {}),
+	};
+}
+
 @Service()
 export class TelemetryEventRelay extends EventRelay {
 	constructor(
@@ -63,6 +79,7 @@ export class TelemetryEventRelay extends EventRelay {
 		private readonly sharedWorkflowRepository: SharedWorkflowRepository,
 		private readonly projectRelationRepository: ProjectRelationRepository,
 		private readonly credentialsRepository: CredentialsRepository,
+		private readonly dynamicCredentialsProxy: DynamicCredentialsProxy,
 	) {
 		super(eventService);
 	}
@@ -837,7 +854,12 @@ export class TelemetryEventRelay extends EventRelay {
 		let credentialResolverId: JsonValue | undefined = undefined;
 
 		if (settingsChanged?.credentialResolverId) {
-			credentialResolverId = settingsChanged.credentialResolverId.to;
+			// Emit the effective resolver id: the override if set, otherwise the system
+			// resolver (so cleared overrides report the implicit fallback rather than null).
+			credentialResolverId =
+				(settingsChanged.credentialResolverId.to as JsonValue | undefined) ??
+				this.dynamicCredentialsProxy.getSystemResolverId() ??
+				undefined;
 		}
 
 		let redactionPolicy: JsonValue | undefined = undefined;
@@ -877,16 +899,20 @@ export class TelemetryEventRelay extends EventRelay {
 		workflow,
 		runData,
 		userId,
+		telemetryMetadata,
 	}: RelayEventMap['workflow-post-execute']) {
 		if (!workflow.id) {
 			return;
 		}
+
+		const executionTelemetryProperties = getExecutionTelemetryProperties(telemetryMetadata);
 
 		const telemetryProperties: IExecutionTrackProperties = {
 			workflow_id: workflow.id,
 			is_manual: false,
 			version_cli: N8N_VERSION,
 			success: false,
+			...executionTelemetryProperties,
 			used_dynamic_credentials: Object.values(runData?.data?.resultData?.runData ?? {}).some(
 				(taskDataList) => taskDataList.some((taskData) => taskData.usedDynamicCredentials),
 			),
@@ -987,6 +1013,7 @@ export class TelemetryEventRelay extends EventRelay {
 					eval_rows_left: null,
 					meta: JSON.stringify(workflow.meta),
 					used_dynamic_credentials: telemetryProperties.used_dynamic_credentials,
+					...executionTelemetryProperties,
 					...TelemetryHelpers.resolveAIMetrics(workflow.nodes, this.nodeTypes),
 					...TelemetryHelpers.resolveVectorStoreMetrics(workflow.nodes, this.nodeTypes, runData),
 					...TelemetryHelpers.extractLastExecutedNodeStructuredOutputErrorInfo(

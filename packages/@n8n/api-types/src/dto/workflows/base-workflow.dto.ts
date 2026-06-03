@@ -1,8 +1,6 @@
 import type { IPinData, IConnections, IDataObject, INode, IWorkflowSettings } from 'n8n-workflow';
 import { z } from 'zod';
 
-import { xssCheck } from '../../utils/xss-check';
-
 export const WORKFLOW_NAME_MAX_LENGTH = 128;
 
 /** Maximum allowed size for pinned data in bytes (12 MB) */
@@ -19,8 +17,7 @@ export const workflowNameSchema = z
 	.min(1, { message: 'Workflow name is required' })
 	.max(WORKFLOW_NAME_MAX_LENGTH, {
 		message: `Workflow name must be ${WORKFLOW_NAME_MAX_LENGTH} characters or less`,
-	})
-	.refine(xssCheck, { message: 'Potentially malicious string' });
+	});
 
 export const workflowDescriptionSchema = z.string().nullable();
 
@@ -73,6 +70,14 @@ export const workflowPinDataSchema = z.custom<IPinData | null>(
 
 export const workflowMetaSchema = z.record(z.string(), z.unknown()).nullable();
 
+const workflowGroupSchema = z.object({
+	id: z.string().min(1),
+	name: z.string().min(1),
+	nodeIds: z.array(z.string().min(1)),
+});
+
+export const workflowNodeGroupsSchema = z.array(workflowGroupSchema);
+
 /**
  * Base workflow shape containing fields shared between Create and Update DTOs.
  */
@@ -88,6 +93,7 @@ export const baseWorkflowShape = {
 	staticData: workflowStaticDataSchema.optional(),
 	meta: workflowMetaSchema.optional(),
 	pinData: workflowPinDataSchema.optional(),
+	nodeGroups: workflowNodeGroupsSchema.optional(),
 	hash: z.string().optional(),
 
 	// Folder organization

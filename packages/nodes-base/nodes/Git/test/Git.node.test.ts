@@ -1,6 +1,6 @@
 import * as fsPromises from 'fs/promises';
 import { mock } from 'jest-mock-extended';
-import type { IExecuteFunctions } from 'n8n-workflow';
+import type { IExecuteFunctions, ResolvedFilePath } from 'n8n-workflow';
 import type { SimpleGit } from 'simple-git';
 import { Container } from '@n8n/di';
 import { SecurityConfig } from '@n8n/config';
@@ -31,8 +31,10 @@ const mockGit = {
 
 jest.mock('simple-git', () => ({
 	__esModule: true,
-	default: () => mockGit,
+	default: jest.fn(() => mockGit),
 }));
+
+const mockSimpleGit = jest.requireMock<{ default: jest.Mock }>('simple-git').default;
 
 // Mock filesystem operations
 jest.mock('fs/promises', () => ({
@@ -60,32 +62,6 @@ describe('Git Node', () => {
 		});
 		jest.clearAllMocks();
 		mockGit.listConfig.mockResolvedValue({ values: {} } as any);
-	});
-
-	describe('Environment validation', () => {
-		it('should not include invalid inherited environment keys in simple-git env', async () => {
-			const inheritedEnvKey = 'N8N_TEST_INVALID_ENV_KEY';
-			(Object.prototype as Record<string, unknown>)[inheritedEnvKey] = 'ignored';
-
-			mockExecuteFunctions.getNodeParameter
-				.mockReturnValueOnce('log')
-				.mockReturnValueOnce('/repo')
-				.mockReturnValueOnce({});
-
-			mockGit.log.mockResolvedValueOnce({ all: [] } as any);
-
-			try {
-				await gitNode.execute.call(mockExecuteFunctions);
-			} finally {
-				delete (Object.prototype as Record<string, unknown>)[inheritedEnvKey];
-			}
-
-			expect(mockGit.env).toHaveBeenCalledTimes(1);
-			const envArg = mockGit.env.mock.calls[0][0] as Record<string, string>;
-			expect(Object.prototype.hasOwnProperty.call(envArg, inheritedEnvKey)).toBe(false);
-			expect(envArg[inheritedEnvKey]).toBeUndefined();
-			expect(envArg.GIT_TERMINAL_PROMPT).toBe('0');
-		});
 	});
 
 	describe('Environment validation', () => {
@@ -772,6 +748,73 @@ describe('Git Node', () => {
 			expect(mockGit.addConfig).toHaveBeenCalledWith('user.name', 'test user', false);
 		});
 
+		it('should handle clone operation and create the parent directory', async () => {
+			const missingParentError = Object.assign(new Error('Directory does not exist'), {
+				code: 'ENOENT',
+			});
+
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('clone')
+				.mockReturnValueOnce('/git/new-repo')
+				.mockReturnValueOnce({})
+				.mockReturnValueOnce('https://github.com/test/repo.git');
+
+			mockExecuteFunctions.helpers.resolvePath = jest
+				.fn()
+				.mockRejectedValueOnce(missingParentError)
+				.mockResolvedValueOnce('/git' as ResolvedFilePath);
+			mockFsPromises.mkdir.mockResolvedValueOnce(undefined);
+
+			const result = await gitNode.execute.call(mockExecuteFunctions);
+
+			expect(mockFsPromises.access).not.toHaveBeenCalled();
+			expect(mockExecuteFunctions.helpers.resolvePath).toHaveBeenCalledWith('/git/new-repo');
+			expect(mockExecuteFunctions.helpers.resolvePath).toHaveBeenCalledWith('/git');
+			expect(mockFsPromises.mkdir).toHaveBeenCalledWith('/git', { recursive: true });
+			expect(mockSimpleGit).toHaveBeenCalledWith(expect.objectContaining({ baseDir: '/git' }));
+			expect(mockGit.clone).toHaveBeenCalledWith(
+				'https://github.com/test/repo.git',
+				'/git/new-repo',
+				['--'],
+			);
+			expect(result[0]).toEqual([{ json: { success: true }, pairedItem: { item: 0 } }]);
+		});
+
+		it('should not create the parent directory when clone path is blocked', async () => {
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('clone')
+				.mockReturnValueOnce('/blocked/repo')
+				.mockReturnValueOnce({});
+			mockExecuteFunctions.helpers.isFilePathBlocked = jest.fn(() => true);
+
+			await expect(gitNode.execute.call(mockExecuteFunctions)).rejects.toThrow(
+				'Access to the repository path is not allowed',
+			);
+
+			expect(mockFsPromises.mkdir).not.toHaveBeenCalled();
+			expect(mockSimpleGit).not.toHaveBeenCalled();
+			expect(mockGit.clone).not.toHaveBeenCalled();
+		});
+
+		it('should pass the resolved repository path as the clone destination', async () => {
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('clone')
+				.mockReturnValueOnce('/git/existing-repo')
+				.mockReturnValueOnce({})
+				.mockReturnValueOnce('https://github.com/test/repo.git');
+
+			await gitNode.execute.call(mockExecuteFunctions);
+
+			expect(mockFsPromises.access).not.toHaveBeenCalled();
+			expect(mockFsPromises.mkdir).toHaveBeenCalledWith('/git', { recursive: true });
+			expect(mockSimpleGit).toHaveBeenCalledWith(expect.objectContaining({ baseDir: '/git' }));
+			expect(mockGit.clone).toHaveBeenCalledWith(
+				'https://github.com/test/repo.git',
+				'/git/existing-repo',
+				['--'],
+			);
+		});
+
 		it('should not clone from a blocked local source repository path', async () => {
 			mockExecuteFunctions.getNodeParameter
 				.mockReturnValueOnce('clone')
@@ -787,6 +830,7 @@ describe('Git Node', () => {
 			);
 
 			expect(mockFsPromises.mkdir).not.toHaveBeenCalled();
+			expect(mockSimpleGit).not.toHaveBeenCalled();
 			expect(mockGit.clone).not.toHaveBeenCalled();
 		});
 
@@ -831,6 +875,7 @@ describe('Git Node', () => {
 			);
 
 			expect(mockFsPromises.mkdir).not.toHaveBeenCalled();
+			expect(mockSimpleGit).not.toHaveBeenCalled();
 			expect(mockGit.clone).not.toHaveBeenCalled();
 		});
 

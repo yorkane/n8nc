@@ -1,6 +1,6 @@
 import { DeploymentConfig, SecurityConfig } from '@n8n/config';
 import { Container } from '@n8n/di';
-import { access, mkdir } from 'fs/promises';
+import { mkdir } from 'fs/promises';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -415,7 +415,11 @@ export class Git implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const repositoryPath = this.getNodeParameter('repositoryPath', itemIndex, '') as string;
-				const resolvedRepositoryPath = await this.helpers.resolvePath(repositoryPath);
+				const resolvedRepositoryPath =
+					operation === 'clone'
+						? await resolvePathAllowingMissingParents(repositoryPath)
+						: await this.helpers.resolvePath(repositoryPath);
+
 				const isFilePathBlocked = this.helpers.isFilePathBlocked(resolvedRepositoryPath);
 				if (isFilePathBlocked) {
 					throw new NodeOperationError(
@@ -448,12 +452,7 @@ export class Git implements INodeType {
 				}
 
 				if (operation === 'clone') {
-					// Create repository folder if it does not exist
-					try {
-						await access(resolvedRepositoryPath);
-					} catch (error) {
-						await mkdir(resolvedRepositoryPath);
-					}
+					await mkdir(dirname(resolvedRepositoryPath), { recursive: true });
 				}
 
 				const gitConfig: string[] = [];
@@ -471,7 +470,7 @@ export class Git implements INodeType {
 				}
 
 				const gitOptions: Partial<SimpleGitOptions> = {
-					baseDir: resolvedRepositoryPath,
+					baseDir: operation === 'clone' ? dirname(resolvedRepositoryPath) : resolvedRepositoryPath,
 					config: gitConfig,
 					// simple-git blocks callers from setting `core.hooksPath` via `config`
 					// unless this flag is set. We set it deliberately as a mitigation, so

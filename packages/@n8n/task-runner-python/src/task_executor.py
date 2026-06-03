@@ -354,6 +354,14 @@ class TaskExecutor:
         return compile(tree, filename, "exec")
 
     @staticmethod
+    def _compile_user_code(raw_code: str, filename: str):
+        wrapped_code = TaskExecutor._wrap_code(raw_code)
+        tree = ast.parse(wrapped_code, filename, "exec")
+        tree = FormatGuardTransformer().visit(tree)
+        ast.fix_missing_locations(tree)
+        return compile(tree, filename, "exec")
+
+    @staticmethod
     def _extract_json_data_per_item(user_output):
         if not isinstance(user_output, dict):
             return user_output
