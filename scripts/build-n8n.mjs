@@ -97,9 +97,13 @@ startTimer('package_build');
 
 echo(chalk.yellow('INFO: Running pnpm install and build...'));
 try {
-	const installProcess = $`cd ${config.rootDir} && pnpm install --frozen-lockfile`;
-	installProcess.pipe(process.stdout);
-	await installProcess;
+	if (process.env.N8N_SKIP_PREBUILD_INSTALL === 'true') {
+		echo(chalk.gray('INFO: Skipping pre-build install (N8N_SKIP_PREBUILD_INSTALL=true)'));
+	} else {
+		const installProcess = $`cd ${config.rootDir} && pnpm install --frozen-lockfile`;
+		installProcess.pipe(process.stdout);
+		await installProcess;
+	}
 
 	const buildProcess = $`cd ${config.rootDir} && pnpm build --summarize`;
 	buildProcess.pipe(process.stdout);

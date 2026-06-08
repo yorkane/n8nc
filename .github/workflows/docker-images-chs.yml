@@ -2,6 +2,7 @@ name: 'Docker: Build and Push (CHS tags only)'
 
 env:
   NODE_OPTIONS: '--max-old-space-size=8192'
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
   # Host build: 2.23.x lockfile/native addons are verified on 24.13.1 (24.15.0 fails pnpm install).
   NODE_VERSION: '24.13.1'
   # Docker runtime/base image tag (must match published n8nio/base on Docker Hub).
@@ -32,6 +33,7 @@ permissions:
 jobs:
   build-and-push-docker:
     strategy:
+      fail-fast: false
       matrix:
         platform: [amd64, arm64]
         include:
@@ -44,7 +46,7 @@ jobs:
 
     name: Build and Push Docker Images (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Validate manual inputs
         if: github.event_name == 'workflow_dispatch'
@@ -91,7 +93,6 @@ jobs:
       - name: Install dependencies
         env:
           INSTALL_LOG: ${{ runner.temp }}/pnpm-install.log
-          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           DEBUG: pnpm:*
         run: |
           set +o pipefail
@@ -119,6 +120,8 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Build n8n for Docker
+        env:
+          N8N_SKIP_PREBUILD_INSTALL: 'true'
         run: pnpm build:n8n
 
       - name: Set up Docker Buildx
