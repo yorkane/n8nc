@@ -4,9 +4,10 @@ ARG N8N_VERSION=snapshot
 # Builder stage exists because the runtime base image has no toolchain.
 FROM node:${NODE_VERSION}-alpine3.22 AS builder
 COPY ./compiled /usr/local/lib/node_modules/n8n
-RUN apk add --no-cache python3 make g++ && \
+RUN apk add --no-cache python3 make g++ sqlite-dev && \
+    corepack enable pnpm && \
     cd /usr/local/lib/node_modules/n8n && \
-    npm rebuild sqlite3
+    pnpm rebuild sqlite3
 
 FROM n8nio/base:${NODE_VERSION}
 
