@@ -64,12 +64,59 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.source_ref != '' && inputs.source_ref || github.sha) || github.ref }}
 
-      - name: Setup Node.js and install dependencies
-        uses: ./.github/actions/setup-nodejs
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          build-command: ''
-          install-command: pnpm install --frozen-lockfile
+          cache: pnpm
+
+      - name: Verify Node.js version
+        run: |
+          ACTUAL="$(node --version)"
+          if [ "${ACTUAL#v}" != "${NODE_VERSION}" ]; then
+            echo "::error::Expected Node ${NODE_VERSION}, got ${ACTUAL}"
+            exit 1
+          fi
+
+      - name: Verify pnpm store path
+        run: |
+          PNPM_STORE_PATH="$(pnpm store path --silent)"
+          if [ ! -d "$PNPM_STORE_PATH" ]; then
+            mkdir -p "$PNPM_STORE_PATH"
+          fi
+
+      - name: Install dependencies
+        env:
+          INSTALL_LOG: ${{ runner.temp }}/pnpm-install.log
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          DEBUG: pnpm:*
+        run: |
+          set +o pipefail
+          timeout --kill-after=30s 300s pnpm install --frozen-lockfile \
+            --reporter=append-only --loglevel=debug 2>&1 | tee "$INSTALL_LOG"
+          rc=${PIPESTATUS[0]}
+          set -o pipefail
+          if [ "$rc" -ne 0 ]; then
+            echo "::group::pnpm install full output (captured)"
+            cat "$INSTALL_LOG" 2>/dev/null || echo "(no captured log)"
+            echo "::endgroup::"
+            case "$rc" in
+              124) echo "::error::pnpm install timed out after 300s (exit 124)" ;;
+              137) echo "::error::pnpm install received SIGKILL (exit 137 — likely OOM)" ;;
+            esac
+            exit "$rc"
+          fi
+
+      - name: Configure Turborepo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
       - name: Build n8n for Docker
         run: pnpm build:n8n
