@@ -79,7 +79,7 @@ declare global {
 					disable_session_recording?: boolean;
 					debug?: boolean;
 					bootstrap?: {
-						distinctId?: string;
+						distinctID?: string;
 						isIdentifiedID?: boolean;
 						featureFlags: FeatureFlags;
 					};
@@ -87,6 +87,7 @@ declare global {
 						maskAllInputs?: boolean;
 						maskInputFn?: ((text: string, element?: HTMLElement) => string) | null;
 					};
+					loaded?: () => void;
 				},
 			): void;
 			isFeatureEnabled?(flagName: string): boolean;
@@ -315,6 +316,7 @@ export type CredentialsResource = BaseResource & {
 	needsSetup: boolean;
 	isGlobal?: boolean;
 	isResolvable?: boolean;
+	connectedByMe?: boolean;
 };
 
 // Base resource types that are always available

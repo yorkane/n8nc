@@ -50,9 +50,10 @@ function limitNodeGraphStringSize(nodeGraphString: string): string {
 }
 
 function getExecutionTelemetryProperties(
+	source: RelayEventMap['workflow-post-execute']['source'],
 	telemetryMetadata: RelayEventMap['workflow-post-execute']['telemetryMetadata'],
 ): ITelemetryTrackProperties {
-	const executionSource = telemetryMetadata?.source ?? 'user';
+	const executionSource = source ?? 'user';
 
 	if (executionSource !== 'instance_ai') return { execution_source: executionSource };
 
@@ -127,6 +128,14 @@ export class TelemetryEventRelay extends EventRelay {
 			'credentials-shared': (event) => this.credentialsShared(event),
 			'credentials-updated': (event) => this.credentialsUpdated(event),
 			'credentials-deleted': (event) => this.credentialsDeleted(event),
+			'credentials-user-disconnected': (event) => this.credentialsUserDisconnected(event),
+			'private-credential-created': (event) => this.privateCredentialCreated(event),
+			'private-credential-toggled-to-private': (event) =>
+				this.privateCredentialToggledToPrivate(event),
+			'private-credential-toggled-to-static': (event) =>
+				this.privateCredentialToggledToStatic(event),
+			'private-credential-deleted': (event) => this.privateCredentialDeleted(event),
+			'private-credential-user-connected': (event) => this.privateCredentialUserConnected(event),
 			'ldap-general-sync-finished': (event) => this.ldapGeneralSyncFinished(event),
 			'ldap-settings-updated': (event) => this.ldapSettingsUpdated(event),
 			'ldap-login-sync-failed': (event) => this.ldapLoginSyncFailed(event),
@@ -556,6 +565,7 @@ export class TelemetryEventRelay extends EventRelay {
 		uiContext,
 		isDynamic,
 		usesExternalSecrets,
+		jweEnabled,
 	}: RelayEventMap['credentials-created']) {
 		this.telemetry.track('User created credentials', {
 			user_id: user.id,
@@ -567,6 +577,7 @@ export class TelemetryEventRelay extends EventRelay {
 			uiContext,
 			is_dynamic: isDynamic ?? false,
 			uses_external_secrets: usesExternalSecrets ?? false,
+			jwe_enabled: jweEnabled ?? false,
 		});
 	}
 
@@ -595,6 +606,7 @@ export class TelemetryEventRelay extends EventRelay {
 		credentialType,
 		isDynamic,
 		usesExternalSecrets,
+		jweEnabled,
 	}: RelayEventMap['credentials-updated']) {
 		this.telemetry.track('User updated credentials', {
 			user_id: user.id,
@@ -603,6 +615,7 @@ export class TelemetryEventRelay extends EventRelay {
 			credential_id: credentialId,
 			is_dynamic: isDynamic ?? false,
 			uses_external_secrets: usesExternalSecrets ?? false,
+			jwe_enabled: jweEnabled ?? false,
 		});
 	}
 
@@ -612,6 +625,88 @@ export class TelemetryEventRelay extends EventRelay {
 		credentialType,
 	}: RelayEventMap['credentials-deleted']) {
 		this.telemetry.track('User deleted credentials', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+		});
+	}
+
+	private credentialsUserDisconnected({
+		user,
+		credentialId,
+		credentialType,
+	}: RelayEventMap['credentials-user-disconnected']) {
+		this.telemetry.track('User disconnected own credential connection', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+		});
+	}
+
+	private privateCredentialCreated({
+		user,
+		credentialId,
+		credentialType,
+		projectId,
+		projectType,
+	}: RelayEventMap['private-credential-created']) {
+		this.telemetry.track('User created private credential', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+			project_id: projectId,
+			project_type: projectType,
+		});
+	}
+
+	private privateCredentialToggledToPrivate({
+		user,
+		credentialId,
+		credentialType,
+	}: RelayEventMap['private-credential-toggled-to-private']) {
+		this.telemetry.track('User made credential private', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+		});
+	}
+
+	private privateCredentialToggledToStatic({
+		user,
+		credentialId,
+		credentialType,
+	}: RelayEventMap['private-credential-toggled-to-static']) {
+		this.telemetry.track('User made credential static', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+		});
+	}
+
+	private privateCredentialDeleted({
+		user,
+		credentialId,
+		credentialType,
+	}: RelayEventMap['private-credential-deleted']) {
+		this.telemetry.track('User deleted private credential', {
+			user_id: user.id,
+			user_role: user.role?.slug,
+			credential_type: credentialType,
+			credential_id: credentialId,
+		});
+	}
+
+	private privateCredentialUserConnected({
+		user,
+		credentialId,
+		credentialType,
+	}: RelayEventMap['private-credential-user-connected']) {
+		this.telemetry.track('User connected to private credential', {
 			user_id: user.id,
 			user_role: user.role?.slug,
 			credential_type: credentialType,
@@ -899,13 +994,14 @@ export class TelemetryEventRelay extends EventRelay {
 		workflow,
 		runData,
 		userId,
+		source,
 		telemetryMetadata,
 	}: RelayEventMap['workflow-post-execute']) {
 		if (!workflow.id) {
 			return;
 		}
 
-		const executionTelemetryProperties = getExecutionTelemetryProperties(telemetryMetadata);
+		const executionTelemetryProperties = getExecutionTelemetryProperties(source, telemetryMetadata);
 
 		const telemetryProperties: IExecutionTrackProperties = {
 			workflow_id: workflow.id,

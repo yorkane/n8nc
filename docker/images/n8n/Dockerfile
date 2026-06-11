@@ -7,7 +7,16 @@ COPY ./compiled /usr/local/lib/node_modules/n8n
 RUN apk add --no-cache python3 make g++ sqlite-dev && \
     corepack enable pnpm && \
     cd /usr/local/lib/node_modules/n8n && \
-    pnpm rebuild sqlite3
+    npm rebuild sqlite3 && \
+    # Rebuild isolated-vm from source. node-gyp-build's musl detection relies
+    # on /etc/alpine-release which DHI Alpine omits, so the bundled prebuilt
+    # loader picks the glibc binary and segfaults in musl pthread paths.
+    # Removing prebuilds and invoking node-gyp directly avoids npm rebuild's
+    # double-build behavior (built-in node-gyp + install-script node-gyp)
+    # which races on dep-file state.
+    rm -rf node_modules/isolated-vm/prebuilds && \
+    cd node_modules/isolated-vm && \
+    npx --yes node-gyp rebuild --release -j max
 
 FROM n8nio/base:${NODE_VERSION}
 

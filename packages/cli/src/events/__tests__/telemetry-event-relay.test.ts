@@ -911,6 +911,7 @@ describe('TelemetryEventRelay', () => {
 				project_type: 'personal',
 				is_dynamic: false,
 				uses_external_secrets: false,
+				jwe_enabled: false,
 			});
 		});
 
@@ -966,6 +967,7 @@ describe('TelemetryEventRelay', () => {
 				credential_id: 'cred123',
 				is_dynamic: true,
 				uses_external_secrets: false,
+				jwe_enabled: false,
 			});
 		});
 
@@ -988,6 +990,119 @@ describe('TelemetryEventRelay', () => {
 				user_id: 'user123',
 				user_role: GLOBAL_OWNER_ROLE.slug,
 				credential_type: 'github',
+				credential_id: 'cred123',
+			});
+		});
+
+		it('should track on `private-credential-created` event', () => {
+			const event: RelayEventMap['private-credential-created'] = {
+				user: {
+					id: 'user123',
+					email: 'user@example.com',
+					firstName: 'John',
+					lastName: 'Doe',
+					role: { slug: GLOBAL_OWNER_ROLE.slug },
+				},
+				credentialId: 'cred123',
+				credentialType: 'gmailOAuth2',
+				projectId: 'project456',
+				projectType: 'personal',
+			};
+
+			eventService.emit('private-credential-created', event);
+
+			expect(telemetry.track).toHaveBeenCalledWith('User created private credential', {
+				user_id: 'user123',
+				user_role: GLOBAL_OWNER_ROLE.slug,
+				credential_type: 'gmailOAuth2',
+				credential_id: 'cred123',
+				project_id: 'project456',
+				project_type: 'personal',
+			});
+		});
+
+		it('should track on `private-credential-toggled-to-private` event', () => {
+			const event: RelayEventMap['private-credential-toggled-to-private'] = {
+				user: {
+					id: 'user123',
+					email: 'user@example.com',
+					firstName: 'John',
+					lastName: 'Doe',
+					role: { slug: GLOBAL_OWNER_ROLE.slug },
+				},
+				credentialId: 'cred123',
+				credentialType: 'gmailOAuth2',
+			};
+
+			eventService.emit('private-credential-toggled-to-private', event);
+
+			expect(telemetry.track).toHaveBeenCalledWith('User made credential private', {
+				user_id: 'user123',
+				user_role: GLOBAL_OWNER_ROLE.slug,
+				credential_type: 'gmailOAuth2',
+				credential_id: 'cred123',
+			});
+		});
+
+		it('should track on `private-credential-toggled-to-static` event', () => {
+			const event: RelayEventMap['private-credential-toggled-to-static'] = {
+				user: {
+					id: 'user123',
+					email: 'user@example.com',
+					firstName: 'John',
+					lastName: 'Doe',
+					role: { slug: GLOBAL_OWNER_ROLE.slug },
+				},
+				credentialId: 'cred123',
+				credentialType: 'gmailOAuth2',
+			};
+
+			eventService.emit('private-credential-toggled-to-static', event);
+
+			expect(telemetry.track).toHaveBeenCalledWith('User made credential static', {
+				user_id: 'user123',
+				user_role: GLOBAL_OWNER_ROLE.slug,
+				credential_type: 'gmailOAuth2',
+				credential_id: 'cred123',
+			});
+		});
+
+		it('should track on `private-credential-deleted` event', () => {
+			const event: RelayEventMap['private-credential-deleted'] = {
+				user: {
+					id: 'user123',
+					email: 'user@example.com',
+					firstName: 'John',
+					lastName: 'Doe',
+					role: { slug: GLOBAL_OWNER_ROLE.slug },
+				},
+				credentialId: 'cred123',
+				credentialType: 'gmailOAuth2',
+			};
+
+			eventService.emit('private-credential-deleted', event);
+
+			expect(telemetry.track).toHaveBeenCalledWith('User deleted private credential', {
+				user_id: 'user123',
+				user_role: GLOBAL_OWNER_ROLE.slug,
+				credential_type: 'gmailOAuth2',
+				credential_id: 'cred123',
+			});
+		});
+
+		it('should track on `private-credential-user-connected` event', () => {
+			const event: RelayEventMap['private-credential-user-connected'] = {
+				user: { id: 'user123' },
+				credentialId: 'cred123',
+				credentialType: 'gmailOAuth2',
+			};
+
+			eventService.emit('private-credential-user-connected', event);
+
+			expect(telemetry.track).toHaveBeenCalledWith('User connected to private credential', {
+				user_id: 'user123',
+				user_role: undefined,
+				credential_type: 'gmailOAuth2',
 				credential_id: 'cred123',
 			});
 		});
@@ -2060,8 +2175,8 @@ describe('TelemetryEventRelay', () => {
 				executionId: 'execution123',
 				userId: 'user123',
 				runData,
+				source: 'instance_ai',
 				telemetryMetadata: {
-					source: 'instance_ai',
 					mockDataSources: ['trigger_input', 'verification_pin_data'],
 				},
 			};

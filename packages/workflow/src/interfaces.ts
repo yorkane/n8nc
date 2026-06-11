@@ -213,6 +213,16 @@ export interface IHttpRequestHelper {
 export abstract class ICredentialsHelper {
 	abstract getParentTypes(name: string): string[];
 
+	/**
+	 * Returns false when the credential type sets `restrictToSupportedNodes: true`
+	 * and `nodeType` is not in its `supportedNodes` list. Returns true otherwise
+	 * — including when the credential type is unknown (caller will fail later).
+	 *
+	 * Used by both the execution-engine runtime guard and the workflow-save
+	 * validator so the policy is defined in exactly one place.
+	 */
+	abstract isCredentialUsableByNode(credentialType: string, nodeType: string): boolean;
+
 	abstract authenticate(
 		credentials: ICredentialDataDecryptedObject,
 		typeName: string,
@@ -379,6 +389,16 @@ export interface ICredentialType {
 	genericAuth?: boolean;
 	httpRequestNode?: ICredentialHttpRequestNode;
 	supportedNodes?: string[];
+
+	/**
+	 * If `true`, this credential can ONLY be used at runtime by nodes listed in
+	 * `supportedNodes`. The execution engine will refuse to decrypt the credential
+	 * for any other node — including the HTTP Request node and its tool variants,
+	 * which normally have full access to all credential types.
+	 *
+	 * Opt-in. Existing credentials without this flag are unaffected.
+	 */
+	restrictToSupportedNodes?: true;
 }
 
 export interface ICredentialTypes {
@@ -1347,7 +1367,7 @@ export interface IWebhookFunctions extends FunctionsBaseWithRequiredKeys<'getMod
 	getRequestObject(): express.Request;
 	getResponseObject(): express.Response;
 	getWebhookName(): string;
-	validateCookieAuth(cookieValue: string): Promise<void>;
+	validateCookieAuth(cookieValue: string): Promise<IUser>;
 	nodeHelpers: NodeHelperFunctions;
 	helpers: RequestHelperFunctions & BaseHelperFunctions & BinaryHelperFunctions;
 }
@@ -1365,6 +1385,11 @@ export interface INodeCredentialsDetails {
 export interface INodeCredentials {
 	[key: string]: INodeCredentialsDetails;
 }
+
+export type ICustomTelemetryTag = {
+	key: string;
+	value: string;
+};
 
 export type OnError = 'continueErrorOutput' | 'continueRegularOutput' | 'stopWorkflow';
 export interface INode {
@@ -1384,7 +1409,7 @@ export interface INode {
 	onError?: OnError;
 	continueOnFail?: boolean;
 	customTelemetryTags?: {
-		tag?: Array<{ key: string; value: string }>;
+		tag?: ICustomTelemetryTag[];
 	};
 	parameters: INodeParameters;
 	credentials?: INodeCredentials;
@@ -3099,7 +3124,6 @@ export type WorkflowExecutionMockDataSource =
 	| 'workflow_pin_data';
 
 export interface IWorkflowExecutionTelemetryMetadata {
-	source: WorkflowExecutionSource;
 	mockDataSources?: WorkflowExecutionMockDataSource[];
 }
 
@@ -3126,6 +3150,13 @@ export interface IWorkflowExecutionDataProcess {
 	userId?: string;
 	projectId?: string;
 	projectName?: string;
+	/**
+	 * Who initiated this run. Unset means a regular user-initiated run;
+	 * `'instance_ai'` when the AI assistant ran the workflow on the user's
+	 * behalf. Consumed by the execution push (so the editor can tell agent runs
+	 * apart) and by telemetry.
+	 */
+	source?: WorkflowExecutionSource;
 	telemetryMetadata?: IWorkflowExecutionTelemetryMetadata;
 	dirtyNodeNames?: string[];
 	triggerToStartFrom?: {
@@ -3276,7 +3307,7 @@ export interface IWorkflowExecuteAdditionalData {
 		executeData?: IExecuteData,
 	): Promise<Result<T, E>>;
 	getRunnerStatus?(taskType: string): { available: true } | { available: false; reason?: string };
-	validateCookieAuth?: (cookieValue: string) => Promise<void>;
+	validateCookieAuth?: (cookieValue: string) => Promise<IUser>;
 	/**
 	 * Mutable flag set to true during a node's execution if any credential was resolved
 	 * dynamically. Reset to false by the execution engine before each node runs.
@@ -3324,6 +3355,7 @@ export interface IWorkflowSettings {
 	availableInMCP?: boolean;
 	credentialResolverId?: string;
 	redactionPolicy?: WorkflowSettings.RedactionPolicy;
+	customTelemetryTags?: ICustomTelemetryTag[];
 }
 
 export interface WorkflowFEMeta {

@@ -25,6 +25,8 @@ nodelinter.config.json
 !.github/scripts/package-lock.json
 packages/**/.turbo
 .turbo
+.stryker-tmp/
+**/reports/mutation/
 *.tsbuildinfo
 .stylelintcache
 *.swp
@@ -77,3 +79,4 @@ packages/cli/src/commands/export/outputs
 .n8n
 lefthook-local.yml
 .playwright-mcp
+stryker.log
