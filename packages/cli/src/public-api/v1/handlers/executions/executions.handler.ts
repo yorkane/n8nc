@@ -71,7 +71,7 @@ const executionHandlers: ExecutionHandlers = {
 
 			// look for the execution on the workflow the user owns
 			const execution = await Container.get(
-				ExecutionRepository,
+				ExecutionPersistence,
 			).getExecutionInWorkflowsForPublicApi(id, sharedWorkflowsIds, false);
 
 			if (!execution) {
@@ -116,7 +116,7 @@ const executionHandlers: ExecutionHandlers = {
 
 			// look for the execution on the workflow the user owns
 			const execution = await Container.get(
-				ExecutionRepository,
+				ExecutionPersistence,
 			).getExecutionInWorkflowsForPublicApi(id, sharedWorkflowsIds, includeData);
 
 			if (!execution) {
@@ -171,21 +171,22 @@ const executionHandlers: ExecutionHandlers = {
 				.getActiveExecutions()
 				.map(({ id }) => id);
 
-			const filters: Parameters<typeof ExecutionRepository.prototype.getExecutionsForPublicApi>[0] =
-				{
-					status,
-					limit,
-					lastId,
-					includeData,
-					workflowIds: workflowId ? [workflowId] : sharedWorkflowsIds,
+			const filters: Parameters<
+				typeof ExecutionPersistence.prototype.getExecutionsForPublicApi
+			>[0] = {
+				status,
+				limit,
+				lastId,
+				includeData,
+				workflowIds: workflowId ? [workflowId] : sharedWorkflowsIds,
 
-					// for backward compatibility `running` executions are always excluded
-					// unless the user explicitly filters by `running` status
-					excludedExecutionsIds: status !== 'running' ? runningExecutionsIds : undefined,
-				};
+				// for backward compatibility `running` executions are always excluded
+				// unless the user explicitly filters by `running` status
+				excludedExecutionsIds: status !== 'running' ? runningExecutionsIds : undefined,
+			};
 
 			const executions =
-				await Container.get(ExecutionRepository).getExecutionsForPublicApi(filters);
+				await Container.get(ExecutionPersistence).getExecutionsForPublicApi(filters);
 
 			const newLastId = !executions.length ? '0' : executions.slice(-1)[0].id;
 
@@ -266,7 +267,7 @@ const executionHandlers: ExecutionHandlers = {
 			}
 
 			const execution = await Container.get(
-				ExecutionRepository,
+				ExecutionPersistence,
 			).getExecutionInWorkflowsForPublicApi(id, sharedWorkflowsIds, false);
 
 			if (!execution) {
@@ -290,7 +291,7 @@ const executionHandlers: ExecutionHandlers = {
 			}
 
 			const execution = await Container.get(
-				ExecutionRepository,
+				ExecutionPersistence,
 			).getExecutionInWorkflowsForPublicApi(id, sharedWorkflowsIds, false);
 
 			if (!execution) {

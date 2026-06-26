@@ -1,9 +1,10 @@
 import { MAX_PINNED_DATA_SIZE, MAX_WORKFLOW_SIZE, MAX_EXPECTED_REQUEST_SIZE } from '@n8n/api-types';
 import { CredentialsRepository } from '@n8n/db';
-import type { WorkflowEntity, WorkflowHistory, ExecutionRepository } from '@n8n/db';
+import type { WorkflowEntity, WorkflowHistory } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
 	formatWorkflowStructureIssuePath,
+	isSafeObjectProperty,
 	resolveNodeWebhookId,
 	safeParseWorkflowStructure,
 	type IDataObject,
@@ -20,6 +21,7 @@ import { v4 as uuid } from 'uuid';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { VariablesService } from '@/environments.ee/variables/variables.service.ee';
+import { ExecutionPersistence } from '@/executions/execution-persistence';
 
 import { OwnershipService } from './services/ownership.service';
 
@@ -281,6 +283,11 @@ export async function replaceInvalidCredentials<T extends IWorkflowBase>(
 		// extract credentials types
 		const allNodeCredentials = Object.entries(node.credentials);
 		for (const [nodeCredentialType, nodeCredentials] of allNodeCredentials) {
+			// Reject credential types that resolve to object internals,
+			// so the dynamic lookups and writes below cannot reach the prototype chain.
+			if (!isSafeObjectProperty(nodeCredentialType)) {
+				continue;
+			}
 			// Skip undefined/null credentials (e.g. from SDK's newCredential() which serializes to undefined)
 			if (nodeCredentials === null || nodeCredentials === undefined) {
 				continue;
@@ -434,19 +441,20 @@ export function shouldRestartParentExecution(
  * the parent resumes), not which specific child. Only one child will successfully resume the parent
  * due to the atomic status check in ActiveExecutions.add().
  *
- * @param executionRepository - The execution repository for database operations
  * @param parentExecutionId - The execution ID of the waiting parent workflow
  * @param subworkflowResults - The final execution results from the child workflow
  * @returns Promise that resolves when the parent execution has been updated
  */
 export async function updateParentExecutionWithChildResults(
-	executionRepository: ExecutionRepository,
 	parentExecutionId: string,
 	subworkflowResults: IRun,
+	childExecution?: RelatedExecution,
 ): Promise<void> {
+	const subworkflowError = subworkflowResults.data.resultData.error;
 	const lastExecutedNodeData = getLastExecutedNodeData(subworkflowResults);
-	if (!lastExecutedNodeData?.data) return;
-	const parent = await executionRepository.findSingleExecution(parentExecutionId, {
+	if (!subworkflowError && !lastExecutedNodeData?.data) return;
+	const executionPersistence = Container.get(ExecutionPersistence);
+	const parent = await executionPersistence.findSingleExecution(parentExecutionId, {
 		includeData: true,
 		unflattenData: true,
 	});
@@ -462,12 +470,23 @@ export async function updateParentExecutionWithChildResults(
 		return;
 	}
 
-	// Copy the sub workflow result to the parent execution's Execute Workflow node inputs
-	// so that the Execute Workflow node returns the correct data when parent execution is resumed
-	// and the Execute Workflow node is executed again in disabled mode.
-	nodeExecutionStack[0].data = lastExecutedNodeData.data;
+	if (subworkflowError) {
+		// Record the error on the waiting parent's Execute Workflow node so the node
+		// fails with error on resume instead of appearing as successful. `subExecution`
+		// links the parent's node run to the failed child execution in the UI.
+		nodeExecutionStack[0].metadata = {
+			...nodeExecutionStack[0].metadata,
+			resumeError: subworkflowError,
+			...(childExecution && { subExecution: childExecution }),
+		};
+	} else if (lastExecutedNodeData?.data) {
+		// Copy the sub workflow result to the parent execution's Execute Workflow node inputs
+		// so that the Execute Workflow node returns the correct data when parent execution is resumed
+		// and the Execute Workflow node is executed again in disabled mode.
+		nodeExecutionStack[0].data = lastExecutedNodeData.data;
+	}
 
-	await executionRepository.updateExistingExecution(
+	await executionPersistence.updateExistingExecution(
 		parentExecutionId,
 		parentWithSubWorkflowResults,
 	);

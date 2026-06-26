@@ -60,10 +60,9 @@ import { AuthService } from '@/auth/auth.service';
 import * as ResponseHelper from '@/response-helper';
 import { NamingService } from '@/services/naming.service';
 import { ProjectService } from '@/services/project.service.ee';
-import { SsrfBlockedIpError } from '@/services/ssrf/ssrf-blocked-ip.error';
-import { SsrfProtectionService } from '@/services/ssrf/ssrf-protection.service';
 import { UserManagementMailer } from '@/user-management/email';
 import * as utils from '@/utils';
+import { SsrfBlockedIpError, SsrfProtectionService } from '@n8n/backend-network';
 
 @RestController('/workflows')
 export class WorkflowsController {

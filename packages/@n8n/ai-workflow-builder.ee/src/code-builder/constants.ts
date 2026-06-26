@@ -133,3 +133,13 @@ export const MCP_UPDATE_WORKFLOW_TOOL: BuilderToolBase = {
 	toolName: 'update_workflow',
 	displayTitle: 'Updating workflow',
 };
+
+export const MCP_EXPLORE_NODE_RESOURCES_TOOL: BuilderToolBase = {
+	toolName: 'explore_node_resources',
+	displayTitle: 'Exploring node resources',
+};
+
+export const MCP_GET_WORKFLOW_BEST_PRACTICES_TOOL: BuilderToolBase = {
+	toolName: 'get_workflow_best_practices',
+	displayTitle: 'Getting workflow best practices',
+};

@@ -1,6 +1,7 @@
 import {
 	AgentBuildResumeDto,
 	AgentChatMessageDto,
+	AgentChatResumeDto,
 	AgentIntegrationSchema,
 	type AgentBuilderMessagesResponse,
 	type AgentIntegrationStatusResponse,
@@ -10,6 +11,7 @@ import {
 	type AgentVersionListItemDto,
 	type ChatIntegrationDescriptor,
 	CreateSlackAgentAppDto,
+	ListAgentsQueryDto,
 	type CreateSlackAgentAppResponse,
 	type SlackAgentAppManifestResponse,
 	CreateAgentDto,
@@ -65,6 +67,7 @@ import { BUILDER_TOOLS } from './builder/builder-tool-names';
 import { ChatIntegrationRegistry } from './integrations/agent-chat-integration';
 import { ChatIntegrationService } from './integrations/chat-integration.service';
 import { SlackAppSetupService } from './integrations/slack-app-setup.service';
+import { filterOfferedAgentModelProviders } from './model-catalog';
 import { AgentRepository } from './repositories/agent.repository';
 import { draftChatMemoryResourceId } from './utils/agent-memory-scope';
 import type { Agent } from './entities/agent.entity';
@@ -174,12 +177,17 @@ export class AgentsController {
 
 	@Get('/')
 	@ProjectScope('agent:list')
-	async list(req: AuthenticatedRequest<{ projectId: string }, unknown, unknown, { all?: string }>) {
-		// ?all=true returns all agents for this user (cross-project, for Instance AI switcher)
-		if (req.query.all === 'true') {
-			return await this.agentsService.findByUser(req.user.id);
-		}
-		return await this.agentsService.findByProjectId(req.params.projectId);
+	async list(
+		req: AuthenticatedRequest<
+			{ projectId: string },
+			unknown,
+			unknown,
+			{ filter?: string; skip?: string; take?: string; sortBy?: string }
+		>,
+		res: Response,
+		@Query query: ListAgentsQueryDto,
+	) {
+		res.json(await this.agentsService.findByProjectIdPaginated(req.params.projectId, query));
 	}
 
 	@Get('/:agentId/config')
@@ -282,7 +290,7 @@ export class AgentsController {
 	@ProjectScope('agent:read')
 	async getModelCatalog() {
 		const { fetchProviderCatalog } = await import('@n8n/agents');
-		return await fetchProviderCatalog();
+		return filterOfferedAgentModelProviders(await fetchProviderCatalog());
 	}
 
 	@Get('/catalog/integrations')
@@ -397,9 +405,9 @@ export class AgentsController {
 		return await this.withRunnableState(agent, req.params.projectId, req.user);
 	}
 
-	/** Knowledge base endpoints are gated behind the `knowledge-base` agents module. */
+	/** Knowledge base endpoints are gated behind Daytona sandbox env vars. */
 	private assertKnowledgeBaseEnabled() {
-		if (!this.agentsService.isKnowledgeBaseModuleEnabled()) {
+		if (!this.agentsService.isKnowledgeBaseEnabled()) {
 			throw new NotFoundError('Agent knowledge base is not enabled');
 		}
 	}
@@ -606,7 +614,7 @@ export class AgentsController {
 		}
 
 		try {
-			await pumpChunks(
+			const suspended = await pumpChunks(
 				this.agentsService.executeForChat({
 					agentId,
 					projectId,
@@ -619,9 +627,47 @@ export class AgentsController {
 				}),
 				send,
 			);
-			send({ type: 'done', sessionId: threadId });
+			if (!suspended) {
+				send({ type: 'done', sessionId: threadId });
+			}
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Chat failed';
+			send({ type: 'error', message: errorMessage });
+		}
+
+		res.end();
+	}
+
+	@Post('/:agentId/chat/resume', { usesTemplates: true })
+	@ProjectScope('agent:execute')
+	async chatResume(
+		req: AuthenticatedRequest<{ projectId: string }>,
+		res: FlushableResponse,
+		@Param('agentId') agentId: string,
+		@Body payload: AgentChatResumeDto,
+	) {
+		const { projectId } = req.params;
+		const { runId, toolCallId, resumeData } = payload;
+		const { send } = initSseStream(res);
+
+		try {
+			const suspended = await pumpChunks(
+				this.agentsService.resumeForChat({
+					agentId,
+					projectId,
+					runId,
+					toolCallId,
+					resumeData,
+					userId: req.user.id,
+					usePublishedVersion: false,
+				}),
+				send,
+			);
+			if (!suspended) {
+				send({ type: 'done' });
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Resume failed';
 			send({ type: 'error', message: errorMessage });
 		}
 
@@ -849,28 +895,21 @@ export class AgentsController {
 			);
 		}
 
-		if (!agent.activeVersionId) {
-			await this.agentsService.saveCredentialIntegration(agent, integration, { broadcast: false });
-			const publishedAgent = await this.agentsService.publishAgent(
-				agentId,
-				agent.projectId,
-				req.user,
-				undefined,
-				{ syncIntegrations: false },
-			);
-			await this.chatIntegrationService.connect(agentId, integration, req.user.id, agent.projectId);
-			await this.chatIntegrationService.broadcastIntegrationChange(agentId, integration, 'connect');
-			return {
-				status: 'connected',
-				agent: await this.withRunnableState(publishedAgent, agent.projectId, req.user),
-			};
-		}
-
+		await this.agentsService.saveCredentialIntegration(agent, integration, { broadcast: false });
+		const publishedAgent = await this.agentsService.publishAgent(
+			agentId,
+			agent.projectId,
+			req.user,
+			undefined,
+			{ syncIntegrations: false },
+		);
 		await this.chatIntegrationService.connect(agentId, integration, req.user.id, agent.projectId);
+		await this.chatIntegrationService.broadcastIntegrationChange(agentId, integration, 'connect');
 
-		await this.agentsService.saveCredentialIntegration(agent, integration);
-
-		return { status: 'connected' };
+		return {
+			status: 'connected',
+			agent: await this.withRunnableState(publishedAgent, agent.projectId, req.user),
+		};
 	}
 
 	@Post('/:agentId/integrations/slack/app')
