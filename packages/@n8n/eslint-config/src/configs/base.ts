@@ -349,9 +349,9 @@ export const baseConfig = tseslint.config(
 						'**/*.config.js',
 						'**/scripts/*.ts',
 						'**/scripts/*.js',
+						'**/*.stories.ts',
 					],
 					optionalDependencies: false,
-					peerDependencies: false,
 				},
 			],
 
